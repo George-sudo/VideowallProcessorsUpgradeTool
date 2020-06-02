@@ -133,7 +133,7 @@
            <item>
             <layout class="QHBoxLayout" name="horizontalLayout_5">
              <item>
-              <widget class="QLineEdit" name="lineEdit">
+              <widget class="QLineEdit" name="ipLE1">
                <property name="text">
                 <string>192</string>
                </property>
@@ -147,7 +147,7 @@
               </widget>
              </item>
              <item>
-              <widget class="QLineEdit" name="lineEdit_2">
+              <widget class="QLineEdit" name="ipLE2">
                <property name="text">
                 <string>168</string>
                </property>
@@ -161,7 +161,7 @@
               </widget>
              </item>
              <item>
-              <widget class="QLineEdit" name="lineEdit_3">
+              <widget class="QLineEdit" name="ipLE3">
                <property name="text">
                 <string>168</string>
                </property>
@@ -175,7 +175,7 @@
               </widget>
              </item>
              <item>
-              <widget class="QLineEdit" name="lineEdit_4">
+              <widget class="QLineEdit" name="ipLE4">
                <property name="text">
                 <string>168</string>
                </property>
@@ -195,7 +195,7 @@
             </widget>
            </item>
            <item>
-            <widget class="QLineEdit" name="lineEdit_5">
+            <widget class="QLineEdit" name="PortLE">
              <property name="text">
               <string>50000</string>
              </property>
@@ -249,14 +249,14 @@
         </spacer>
        </item>
        <item>
-        <widget class="QPushButton" name="pushButton">
+        <widget class="QPushButton" name="ConectBt">
          <property name="text">
           <string>连接</string>
          </property>
         </widget>
        </item>
        <item>
-        <widget class="QPushButton" name="pushButton_2">
+        <widget class="QPushButton" name="CancelBt">
          <property name="text">
           <string>取消</string>
          </property>
@@ -271,7 +271,7 @@
  <resources/>
  <connections>
   <connection>
-   <sender>pushButton_2</sender>
+   <sender>CancelBt</sender>
    <signal>clicked()</signal>
    <receiver>Connection</receiver>
    <slot>close()</slot>

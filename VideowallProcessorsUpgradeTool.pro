@@ -4,7 +4,7 @@
 #
 #-------------------------------------------------
 
-QT       += core gui
+QT       += core gui network
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
@@ -16,11 +16,13 @@ RC_FILE = logo.rc
 SOURCES += main.cpp\
         mainwindow.cpp \
     unzip_ufw.cpp \
-    connection.cpp
+    connection.cpp \
+    xmodem.cpp
 
 HEADERS  += mainwindow.h \
     unzip_ufw.h \
-    connection.h
+    connection.h \
+    xmodem.h
 
 FORMS    += mainwindow.ui \
     connection.ui

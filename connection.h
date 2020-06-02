@@ -3,6 +3,8 @@
 
 #include <QDialog>
 #include <QCloseEvent>
+#include <QTcpSocket>
+#include <QHostAddress>
 #include "mainwindow.h"
 
 namespace Ui {
@@ -17,6 +19,13 @@ public:
     explicit Connection(QWidget *parent = 0);
     ~Connection();
     void closeEvent(QCloseEvent *event);
+
+public:
+    static QTcpSocket *tcpClient;
+
+private slots:
+    void on_ConectBt_clicked();
+
 
 private:
     Ui::Connection *ui;

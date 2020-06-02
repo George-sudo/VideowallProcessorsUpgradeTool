@@ -2,11 +2,15 @@
 #include "ui_connection.h"
 #include <QMessageBox>
 
+QTcpSocket *Connection::tcpClient = nullptr;
+
 Connection::Connection(QWidget *parent) :
     QDialog(parent),
     ui(new Ui::Connection)
 {
     ui->setupUi(this);
+    tcpClient = new QTcpSocket(this);
+    tcpClient->abort();
 }
 
 Connection::~Connection()
@@ -35,3 +39,14 @@ void Connection::closeEvent(QCloseEvent *event)
     }
     */
 }
+
+void Connection::on_ConectBt_clicked()
+{
+    QString ip = ui->ipLE1->text() + '.' + ui->ipLE2->text() + '.' + ui->ipLE3->text() + '.' + ui->ipLE4->text();
+    tcpClient->connectToHost(ip,ui->PortLE->text().toInt());
+    if(!tcpClient->waitForConnected(1000))
+    {
+        QMessageBox::information(NULL, "提醒", "连接失败");
+    }
+}
+
