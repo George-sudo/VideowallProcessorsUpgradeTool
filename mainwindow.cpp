@@ -9,11 +9,9 @@ MainWindow::MainWindow(QWidget *parent) :
     ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
-
     //20200508yu: 设置标题
     this->setWindowTitle("LED拼接处理器升级软件");
     GW_connection = new Connection(parent);
-
     initMainWindow();
 }
 
@@ -25,95 +23,94 @@ MainWindow::~MainWindow()
 void MainWindow::initMainWindow()
 {
     GM_TreeViewModel = new QStandardItemModel(ui->treeView);
-    GM_TreeViewModel->setHorizontalHeaderLabels(QStringList()<<QStringLiteral("板卡")<<QStringLiteral("\n版本")<<QStringLiteral("MCU固件\n升级状态")<<\
-                                            QStringLiteral("\n版本")<<QStringLiteral("FPGA1固件\n升级状态")<<QStringLiteral("\n版本")<<QStringLiteral("FPGA2固件\n升级状态")<<QStringLiteral(""));
+    GM_TreeViewModel->setHorizontalHeaderLabels(QStringList()<<QStringLiteral("板卡")<<QStringLiteral("版本")<<QStringLiteral("升级状态")<<\
+                                            QStringLiteral("版本")<<QStringLiteral("升级状态")<<QStringLiteral("版本")<<QStringLiteral("升级状态")<<QStringLiteral(""));
     //设置版本列宽
     ui->treeView->setColumnWidth(1,50);
     ui->treeView->setColumnWidth(3,50);
     ui->treeView->setColumnWidth(5,50);
-
-    GI_input = new QStandardItem("输入卡");
-    GI_output = new QStandardItem("输出卡");
-    GI_control = new QStandardItem("控制卡");
-    GI_backboard = new QStandardItem("背板");
-
-    GI_input->setCheckable(true);
-    GI_output->setCheckable(true);
-    GI_control->setCheckable(true);
-    GI_backboard->setCheckable(true);
-    GI_input->setTristate(true);
-    GI_output->setTristate(true);
-    GI_control->setTristate(true);
-    GI_backboard->setTristate(true);
-
-    GM_TreeViewModel->appendRow(GI_input);
-    GM_TreeViewModel->appendRow(GI_output);
-    GM_TreeViewModel->appendRow(GI_control);
-    GM_TreeViewModel->appendRow(GI_backboard);
-
-    /*****布局所有卡信息item控件*******/
-    std::vector<QStandardItem*> inputItem;
-    std::vector<QStandardItem*> outputItem;
-    std::vector<QStandardItem*> controlItem;
-    std::vector<QStandardItem*> backboardItem;
-    //输入/输出卡信息控件布局
-    for(int i=0; i<9; ++i)
+    std::vector<QStandardItem*> inputMultipleCheckbox;
+    std::vector<QStandardItem*> outputMultipleCheckbox;
+    std::vector<QStandardItem*> controlMultipleCheckbox;
+    std::vector<QStandardItem*> backboardMultipleCheckbox;
+    for(int i=0; i<4; ++i)
     {
-        inputItem.clear();
-        outputItem.clear();
-        for(int j=0; j<7; ++j)
-        {
-           inputItem.push_back(new QStandardItem());
-           outputItem.push_back(new QStandardItem());
-           if(1==j || 3==j || 5==j)
-           {
-               inputItem[j]->setCheckable(true);
-               outputItem[j]->setCheckable(true);
-           }
+        switch (i) {
+        case 0:
+            inputMultipleCheckbox.push_back(new QStandardItem("输入卡"));
+            outputMultipleCheckbox.push_back(new QStandardItem("输出卡"));
+            controlMultipleCheckbox.push_back(new QStandardItem("控制卡"));
+            backboardMultipleCheckbox.push_back(new QStandardItem("背板"));
+            GM_TreeViewModel->setItem(0,i,inputMultipleCheckbox[i]);
+            GM_TreeViewModel->setItem(1,i,outputMultipleCheckbox[i]);
+            GM_TreeViewModel->setItem(2,i,controlMultipleCheckbox[i]);
+            GM_TreeViewModel->setItem(3,i,backboardMultipleCheckbox[i]);
+            break;
+        case 1:
+            inputMultipleCheckbox.push_back(new QStandardItem("MCU固件"));
+            outputMultipleCheckbox.push_back(new QStandardItem("MCU固件"));
+            controlMultipleCheckbox.push_back(new QStandardItem("MCU固件"));
+            backboardMultipleCheckbox.push_back(new QStandardItem("MCU固件"));
+            inputMultipleCheckbox[i]->setAccessibleDescription("0InputMCU固件Box");
+            outputMultipleCheckbox[i]->setAccessibleDescription("3OutputMCU固件Box");
+            controlMultipleCheckbox[i]->setAccessibleDescription("6ControlMCU固件Box");
+            backboardMultipleCheckbox[i]->setAccessibleDescription("9BackboardMCU固件Box");
+            GM_TreeViewModel->setItem(0,i,inputMultipleCheckbox[i]);
+            GM_TreeViewModel->setItem(1,i,outputMultipleCheckbox[i]);
+            GM_TreeViewModel->setItem(2,i,controlMultipleCheckbox[i]);
+            GM_TreeViewModel->setItem(3,i,backboardMultipleCheckbox[i]);
+            break;
+        case 2:
+            inputMultipleCheckbox.push_back(new QStandardItem("FPGA1固件"));
+            outputMultipleCheckbox.push_back(new QStandardItem("FPGA1固件"));
+            controlMultipleCheckbox.push_back(new QStandardItem("FPGA1固件"));
+            backboardMultipleCheckbox.push_back(new QStandardItem("FPGA1固件"));
+            inputMultipleCheckbox[i]->setAccessibleDescription("1InputFPGA1固件Box");
+            outputMultipleCheckbox[i]->setAccessibleDescription("4OutputFPGA1固件Box");
+            controlMultipleCheckbox[i]->setAccessibleDescription("7ControlFPGA1固件Box");
+            backboardMultipleCheckbox[i]->setAccessibleDescription("aBackboardFPGA1固件Box");
+            GM_TreeViewModel->setItem(0,i+1,inputMultipleCheckbox[i]);
+            GM_TreeViewModel->setItem(1,i+1,outputMultipleCheckbox[i]);
+            GM_TreeViewModel->setItem(2,i+1,controlMultipleCheckbox[i]);
+            GM_TreeViewModel->setItem(3,i+1,backboardMultipleCheckbox[i]);
+            break;
+        case 3:
+            inputMultipleCheckbox.push_back(new QStandardItem("FPGA2固件"));
+            outputMultipleCheckbox.push_back(new QStandardItem("FPGA2固件"));
+            controlMultipleCheckbox.push_back(new QStandardItem("FPGA2固件"));
+            backboardMultipleCheckbox.push_back(new QStandardItem("FPGA2固件"));
+            inputMultipleCheckbox[i]->setAccessibleDescription("2InputFPGA2固件Box");
+            outputMultipleCheckbox[i]->setAccessibleDescription("5OutputFPGA2固件Box");
+            controlMultipleCheckbox[i]->setAccessibleDescription("8ControlFPGA2固件Box");
+            backboardMultipleCheckbox[i]->setAccessibleDescription("bBackboardFPGA2固件Box");
+            GM_TreeViewModel->setItem(0,i+2,inputMultipleCheckbox[i]);
+            GM_TreeViewModel->setItem(1,i+2,outputMultipleCheckbox[i]);
+            GM_TreeViewModel->setItem(2,i+2,controlMultipleCheckbox[i]);
+            GM_TreeViewModel->setItem(3,i+2,backboardMultipleCheckbox[i]);
+            break;
+        default:
+            break;
         }
-        GI_inputChild.push_back(inputItem);
-        GI_outputChild.push_back(outputItem);
+        inputMultipleCheckbox[i]->setCheckable(true);
+        outputMultipleCheckbox[i]->setCheckable(true);
+        controlMultipleCheckbox[i]->setCheckable(true);
+        backboardMultipleCheckbox[i]->setCheckable(true);
+        inputMultipleCheckbox[i]->setTristate(true);
+        outputMultipleCheckbox[i]->setTristate(true);
+        controlMultipleCheckbox[i]->setTristate(true);
+        backboardMultipleCheckbox[i]->setTristate(true);
     }
-    for(int i=0; i<9; ++i)
-    {
-        for(int j=0; j<7; ++j)
-        {
-           GI_input->setChild(i,j,GI_inputChild[i][j]);
-           GI_output->setChild(i,j,GI_outputChild[i][j]);
-        }
-    }
-    //控制卡/背板信息控件布局
-    for(int i=0; i<1; ++i)
-    {
-        controlItem.clear();
-        backboardItem.clear();
-        for(int j=0; j<7; ++j)
-        {
-           controlItem.push_back(new QStandardItem());
-           backboardItem.push_back(new QStandardItem());
-           if(1==j || 3==j || 5==j)
-           {
-               controlItem[j]->setCheckable(true);
-               backboardItem[j]->setCheckable(true);
-           }
-        }
-        GI_controlChild.push_back(controlItem);
-        GI_backboardtChild.push_back(backboardItem);
-    }
-    for(int i=0; i<1; ++i)
-    {
-        for(int j=0; j<7; ++j)
-        {
-           GI_control->setChild(i,j,GI_controlChild[i][j]);
-           GI_backboard->setChild(i,j,GI_backboardtChild[i][j]);
-        }
-    }
+    MultipleCheckbox.push_back(inputMultipleCheckbox);
+    MultipleCheckbox.push_back(outputMultipleCheckbox);
+    MultipleCheckbox.push_back(controlMultipleCheckbox);
+    MultipleCheckbox.push_back(backboardMultipleCheckbox);
 
-//    GI_inputSlot2McuVersion->setAccessibleDescription("hello");
-////    GI_inputSlot2->setText("[空]");
+    m_InOutCardCount = 9;
+    m_ControlBackCardCount = 9;
+    AddLayoutItem(m_InOutCardCount,m_ControlBackCardCount);
 
-
-/*此部分为进度条部分，不能单独控制某条控制进度条，暂时先关闭
+#if 0
+//此部分为进度条部分，不能单独控制某条控制进度条，暂时先关闭
     ProgressBarDelegate* progressBar = new ProgressBarDelegate(ui->treeView);
     ui->treeView->setItemDelegateForColumn(2, progressBar);
     ui->treeView->setItemDelegateForColumn(4, progressBar);
@@ -130,8 +127,8 @@ void MainWindow::initMainWindow()
                                                "    border-radius:4px;"
                                                "}";
     qApp->setStyleSheet(ProgressBar_QssStr);
-    GM_TreeViewModel->setData(GM_TreeViewModel->index(0,0).child(2,1),80);
-*/
+    GM_TreeViewModel->setData(GM_TreeViewModel->index(0,0).child(2,2),80);
+#endif
 
     //关联项目属性改变的信号和槽
     connect(GM_TreeViewModel, &QStandardItemModel::itemChanged, this, &MainWindow::treeItemChanged);
@@ -142,6 +139,7 @@ void MainWindow::initMainWindow()
 //    initView();
 }
 
+#if 0
 void MainWindow::initView()
 {
     GM_TreeViewModel->setHorizontalHeaderLabels(QStringList()<<QStringLiteral("板卡")<<QStringLiteral("\n版本")<<QStringLiteral("MCU固件\n升级状态")<<QStringLiteral("\n版本")<<QStringLiteral("FPGA1固件\n升级状态")<<QStringLiteral("\n版本")<<QStringLiteral("FPGA2固件\n升级状态"));
@@ -161,17 +159,104 @@ void MainWindow::initView()
     GW_connection->resize(640, 480);
     GW_connection->show();
 }
+#endif
 
-//复选框状态改变响应的槽函数
+/***增加并布局所有板卡类型展开的item控件***/
+void MainWindow::AddLayoutItem(int InOutCardCount, int ControlBackCardCount)
+{
+    std::vector<QStandardItem*> inputItem;
+    std::vector<QStandardItem*> outputItem;
+    std::vector<QStandardItem*> controlItem;
+    std::vector<QStandardItem*> backboardItem;
+    //输入/输出卡信息控件布局
+    for(int i=0; i<InOutCardCount; ++i)
+    {
+        inputItem.clear();
+        outputItem.clear();
+        for(int j=0; j<7; ++j)
+        {
+           inputItem.push_back(new QStandardItem());
+           outputItem.push_back(new QStandardItem());
+           if(1==j || 3==j || 5==j)
+           {
+               inputItem[j]->setCheckable(true);
+               outputItem[j]->setCheckable(true);
+               switch (j) {
+               case 1:
+                   inputItem[j]->setAccessibleDescription("InputMcuFW"+QString("%1").arg(i));
+                   outputItem[j]->setAccessibleDescription("OutputMcuFW"+QString("%1").arg(i));
+                   break;
+               case 3:
+                   inputItem[j]->setAccessibleDescription("InputFpga1FW"+QString("%1").arg(i));
+                   outputItem[j]->setAccessibleDescription("OutputFpga1FW"+QString("%1").arg(i));
+                   break;
+               case 5:
+                   inputItem[j]->setAccessibleDescription("InputFpga2FW"+QString("%1").arg(i));
+                   outputItem[j]->setAccessibleDescription("OutputFpga2FW"+QString("%1").arg(i));
+                   break;
+               default:
+                   break;
+               }
+           }
+        }
+        GI_inputChild.push_back(inputItem);
+        GI_outputChild.push_back(outputItem);
+    }
+    for(int i=0; i<InOutCardCount; ++i)
+    {
+        for(int j=0; j<7; ++j)
+        {
+           MultipleCheckbox[0][0]->setChild(i,j,GI_inputChild[i][j]);
+           MultipleCheckbox[1][0]->setChild(i,j,GI_outputChild[i][j]);
+        }
+    }
+    //控制卡/背板信息控件布局
+    for(int i=0; i<ControlBackCardCount; ++i)
+    {
+        controlItem.clear();
+        backboardItem.clear();
+        for(int j=0; j<7; ++j)
+        {
+           controlItem.push_back(new QStandardItem());
+           backboardItem.push_back(new QStandardItem());
+           if(1==j || 3==j || 5==j)
+           {
+               controlItem[j]->setCheckable(true);
+               backboardItem[j]->setCheckable(true);
+               switch (j) {
+               case 1:
+                   controlItem[j]->setAccessibleDescription("ControlMcuFW"+QString("%1").arg(i));
+                   backboardItem[j]->setAccessibleDescription("BackboardMcuFW"+QString("%1").arg(i));
+                   break;
+               case 3:
+                   controlItem[j]->setAccessibleDescription("ControlFpga1FW"+QString("%1").arg(i));
+                   backboardItem[j]->setAccessibleDescription("BackboardFpga1FW"+QString("%1").arg(i));
+                   break;
+               case 5:
+                   controlItem[j]->setAccessibleDescription("ControlFpga2FW"+QString("%1").arg(i));
+                   backboardItem[j]->setAccessibleDescription("BackboardFpga2FW"+QString("%1").arg(i));
+                   break;
+               default:
+                   break;
+               }
+           }
+        }
+        GI_controlChild.push_back(controlItem);
+        GI_backboardtChild.push_back(backboardItem);
+    }
+    for(int i=0; i<ControlBackCardCount; ++i)
+    {
+        for(int j=0; j<7; ++j)
+        {
+           MultipleCheckbox[2][0]->setChild(i,j,GI_controlChild[i][j]);
+           MultipleCheckbox[3][0]->setChild(i,j,GI_backboardtChild[i][j]);
+        }
+    }
+}
+
+/***复选框状态改变响应的槽函数***/
 void MainWindow::treeItemChanged(QStandardItem *item)
 {
-//    qDebug()<<"test";
-//    GI_inputChild[0][0]->setText("[空]");
-//    GI_inputChild[0][1]->setCheckable(false);
-
-    if(item->accessibleDescription() == "hello")
-        if(item->checkState())
-            qDebug()<<"hahahah";
     if (item == nullptr)
         return;
     if (item->isCheckable())
@@ -193,10 +278,99 @@ void MainWindow::treeItemChanged(QStandardItem *item)
             //判断兄弟节点的情况
             treeItem_CheckChildChanged(item);
         }
+        McuFpga1Fpga2FWeBox(item);
     }
 }
 
-//检查子节点的情况并设置状态
+/***MCU、FPGA1、FPGA2固件复选框功能实现***/
+void MainWindow::McuFpga1Fpga2FWeBox(QStandardItem *item)
+{
+    qDebug()<<item->accessibleDescription();
+    if(item->accessibleDescription().size() > 0)
+    {
+        //全选与全不选
+        char c = item->accessibleDescription().at(0).toLatin1();
+        switch(c){
+        case '0':
+            for(int i=0; i<m_InOutCardCount; ++i)
+            {
+                GI_inputChild[i][1]->setCheckState(item->checkState());
+            }
+            break;
+        case '1':
+            for(int i=0; i<m_InOutCardCount; ++i)
+            {
+                GI_inputChild[i][3]->setCheckState(item->checkState());
+            }
+            break;
+        case '2':
+            for(int i=0; i<m_InOutCardCount; ++i)
+            {
+                GI_inputChild[i][5]->setCheckState(item->checkState());
+            }
+            break;
+        case '3':
+            for(int i=0; i<m_InOutCardCount; ++i)
+            {
+                GI_outputChild[i][1]->setCheckState(item->checkState());
+            }
+            break;
+        case '4':
+            for(int i=0; i<m_InOutCardCount; ++i)
+            {
+                GI_outputChild[i][3]->setCheckState(item->checkState());
+            }
+            break;
+        case '5':
+            for(int i=0; i<m_InOutCardCount; ++i)
+            {
+                GI_outputChild[i][5]->setCheckState(item->checkState());
+            }
+            break;
+        case '6':
+            for(int i=0; i<m_ControlBackCardCount; ++i)
+            {
+                GI_controlChild[i][1]->setCheckState(item->checkState());
+            }
+            break;
+        case '7':
+            for(int i=0; i<m_ControlBackCardCount; ++i)
+            {
+                GI_controlChild[i][3]->setCheckState(item->checkState());
+            }
+            break;
+        case '8':
+            for(int i=0; i<m_ControlBackCardCount; ++i)
+            {
+                GI_controlChild[i][5]->setCheckState(item->checkState());
+            }
+            break;
+        case '9':
+            for(int i=0; i<m_ControlBackCardCount; ++i)
+            {
+                GI_backboardtChild[i][1]->setCheckState(item->checkState());
+            }
+            break;
+        case 'a':
+            for(int i=0; i<m_ControlBackCardCount; ++i)
+            {
+                GI_backboardtChild[i][3]->setCheckState(item->checkState());
+            }
+            break;
+        case 'b':
+            for(int i=0; i<m_ControlBackCardCount; ++i)
+            {
+                GI_backboardtChild[i][5]->setCheckState(item->checkState());
+            }
+            break;
+        default:
+            break;
+        }
+    }
+
+}
+
+/***检查子节点的情况并设置状态***/
 void MainWindow::treeItem_checkAllChild(QStandardItem *item, bool check)
 {
     if(item == nullptr)
@@ -217,7 +391,7 @@ void MainWindow::treeItem_checkAllChild(QStandardItem *item, bool check)
         item->setCheckState(check ? Qt::Checked : Qt::Unchecked);
 }
 
-///根据子节点的改变，更改父节点的选择情况
+/***根据子节点的改变，更改父节点的选择情况***/
 void MainWindow::treeItem_CheckChildChanged(QStandardItem * item)
 {
     if(nullptr == item)
@@ -244,7 +418,7 @@ void MainWindow::treeItem_CheckChildChanged(QStandardItem * item)
     treeItem_CheckChildChanged(parentItem);
 }
 
-//测量兄弟节点的情况，如果都选中返回Qt::Checked，都不选中Qt::Unchecked,不完全选中返回Qt::PartiallyChecked
+/***测量兄弟节点的情况，如果都选中返回Qt::Checked，都不选中Qt::Unchecked,不完全选中返回Qt::PartiallyChecked***/
 Qt::CheckState MainWindow::checkSibling(QStandardItem * item)
 {
     //先通过父节点获取兄弟节点

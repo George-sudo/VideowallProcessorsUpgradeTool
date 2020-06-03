@@ -16,7 +16,6 @@
 namespace Ui {
 class MainWindow;
 }
-
 namespace PBD {
 class ProgressBarDelegate;
 }
@@ -28,34 +27,36 @@ class MainWindow : public QMainWindow
 public:
     explicit MainWindow(QWidget *parent = 0);
     ~MainWindow();
+
     void initMainWindow(void);
     void initView(void);
-
-    static QString binfile_path;
-    static QString jsonfile_path;
-
+    //复选框
     void treeItem_checkAllChild(QStandardItem *item, bool check);
     void treeItem_CheckChildChanged(QStandardItem *item);
     Qt::CheckState checkSibling(QStandardItem *item);
+    //增加并布局所有板卡类型展开的item控件
+    void AddLayoutItem(int InOutCardCount, int ControlBackCardCount);
+    //MCU、FPGA1、FPGA2固件复选框
+    void McuFpga1Fpga2FWeBox(QStandardItem *item);
 
 private slots :
     void treeItemChanged( QStandardItem * item );
 
+public:
+    static QString binfile_path;
+    static QString jsonfile_path;
 
 private:
     Ui::MainWindow *ui;
-
     QDialog* GW_connection;// = new QDialog(this);
-
     QStandardItemModel* GM_TreeViewModel;
-    QStandardItem* GI_input;
-    QStandardItem* GI_output;
-    QStandardItem* GI_control;
-    QStandardItem* GI_backboard;
+    std::vector<std::vector<QStandardItem*>> MultipleCheckbox;
     std::vector<std::vector<QStandardItem*>> GI_inputChild;
     std::vector<std::vector<QStandardItem*>> GI_outputChild;
     std::vector<std::vector<QStandardItem*>> GI_controlChild;
     std::vector<std::vector<QStandardItem*>> GI_backboardtChild;
+    int m_InOutCardCount;
+    int m_ControlBackCardCount;
 };
 
 //进度条
