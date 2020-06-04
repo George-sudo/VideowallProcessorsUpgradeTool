@@ -3,6 +3,11 @@
 #include <QThread>
 #include <QTcpSocket>
 #include <QHostAddress>
+#include <QIODevice>
+#include <QByteArray>
+#include <QDataStream>
+#include <QFile>
+#include "connection.h"
 
 static const unsigned short crc16tab[256]= {
     0x0000,0x1021,0x2042,0x3063,0x4084,0x50a5,0x60c6,0x70e7,
@@ -43,10 +48,11 @@ class Xmodem:public QThread
 {
     Q_OBJECT
 public:
-    Xmodem();
+    Xmodem(QTcpSocket *tcpClient);
     //计算CRC16
-    unsigned short crc16_ccitt(const char *buf, int len);
+    quint16 crc16_ccitt(const char *buf, int len);
     bool SendFile(QString FilePath);
+    void GetChar(char *rxchar,int msWaitTime = 3000);
 
 protected:
     void run();
@@ -69,7 +75,7 @@ private:
         PKTSIZE = 1024
     };
 
-
+    QTcpSocket *m_tcpClient;
 };
 
 #endif // XMODEM_H

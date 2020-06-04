@@ -12,6 +12,7 @@ MainWindow::MainWindow(QWidget *parent) :
     //20200508yu: 设置标题
     this->setWindowTitle("LED拼接处理器升级软件");
     GW_connection = new Connection(parent);
+    xmodem = new Xmodem(Connection::tcpClient);
     initMainWindow();
 }
 
@@ -367,7 +368,6 @@ void MainWindow::McuFpga1Fpga2FWeBox(QStandardItem *item)
             break;
         }
     }
-
 }
 
 /***检查子节点的情况并设置状态***/
@@ -452,4 +452,9 @@ Qt::CheckState MainWindow::checkSibling(QStandardItem * item)
     if(unCheckedCount>0)
         return Qt::Unchecked;
     return Qt::Checked;
+}
+
+void MainWindow::on_SlectFileBt_clicked()
+{
+
 }

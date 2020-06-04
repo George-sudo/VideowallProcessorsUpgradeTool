@@ -6,12 +6,14 @@
 #include "ui_mainwindow.h"
 #include "connection.h"
 #include "unzip_ufw.h"
+#include "xmodem.h"
 #include <QStandardItemModel>
 //#include <QMessageBox>
 #include <QFlags>
 #include <QItemDelegate>
 #include <QProgressBar>
 #include <vector>
+#include <QTcpSocket>
 
 namespace Ui {
 class MainWindow;
@@ -20,6 +22,9 @@ namespace PBD {
 class ProgressBarDelegate;
 }
 
+//声明类，避免系统在编译的时候，先加载mainwindow.h文件后加载xmodem.h，导致找不到类Xmodem的情况
+class Xmodem;
+
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
@@ -27,7 +32,6 @@ class MainWindow : public QMainWindow
 public:
     explicit MainWindow(QWidget *parent = 0);
     ~MainWindow();
-
     void initMainWindow(void);
     void initView(void);
     //复选框
@@ -42,6 +46,8 @@ public:
 private slots :
     void treeItemChanged( QStandardItem * item );
 
+    void on_SlectFileBt_clicked();
+
 public:
     static QString binfile_path;
     static QString jsonfile_path;
@@ -49,6 +55,7 @@ public:
 private:
     Ui::MainWindow *ui;
     QDialog* GW_connection;// = new QDialog(this);
+    Xmodem *xmodem;
     QStandardItemModel* GM_TreeViewModel;
     std::vector<std::vector<QStandardItem*>> MultipleCheckbox;
     std::vector<std::vector<QStandardItem*>> GI_inputChild;
