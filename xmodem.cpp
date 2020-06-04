@@ -69,7 +69,9 @@ NextStep:
             m_tcpClient->write(m_outBlock);
         }
         else{
-            m_tcpClient->write(XMDM_EOT);
+            m_outBlock.resize(0);
+            out << XMDM_EOT;
+            m_tcpClient->write(m_outBlock);
         }
         GetChar(&rxChar,5000);
         switch (rxChar) {
