@@ -6,6 +6,6 @@
 #include <QString>
 #include <QDebug>
 //declared funciton
-int unzipFile(QString file_path);
+int unzipFile(QString Dir, QString fileNmae);
 
 #endif // UNZIP_UFW_H

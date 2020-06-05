@@ -14,6 +14,13 @@
 #include <QProgressBar>
 #include <vector>
 #include <QTcpSocket>
+#include <QFileDialog>
+#include <QStringList>
+#include <QJsonDocument>
+#include <QJsonParseError>
+#include <QJsonObject>
+#include <QJsonArray>
+#include <QJsonValue>
 
 namespace Ui {
 class MainWindow;
@@ -33,7 +40,7 @@ public:
     explicit MainWindow(QWidget *parent = 0);
     ~MainWindow();
     void initMainWindow(void);
-    void initView(void);
+    void ConnectView(void);
     //复选框
     void treeItem_checkAllChild(QStandardItem *item, bool check);
     void treeItem_CheckChildChanged(QStandardItem *item);
@@ -42,15 +49,21 @@ public:
     void AddLayoutItem(int InOutCardCount, int ControlBackCardCount);
     //MCU、FPGA1、FPGA2固件复选框
     void McuFpga1Fpga2FWeBox(QStandardItem *item);
+    void SetCardInfoToItem(QByteArray CardInfo);
+
+signals:
+    void FileSend(QString BinFilePath);
 
 private slots :
     void treeItemChanged( QStandardItem * item );
-
     void on_SlectFileBt_clicked();
+    void ScanCard();
+    void on_upgradeBt_clicked();
+    void ReceiveData();
 
 public:
-    static QString binfile_path;
-    static QString jsonfile_path;
+    QString m_BinFilePath;
+    QString m_JsonFilePath;
 
 private:
     Ui::MainWindow *ui;
@@ -64,6 +77,7 @@ private:
     std::vector<std::vector<QStandardItem*>> GI_backboardtChild;
     int m_InOutCardCount;
     int m_ControlBackCardCount;
+    int flags;
 };
 
 //进度条

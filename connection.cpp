@@ -3,6 +3,8 @@
 #include <QMessageBox>
 
 QTcpSocket *Connection::tcpClient = nullptr;
+QString Connection::ip = "";
+int Connection::port = -1;
 
 Connection::Connection(QWidget *parent) :
     QDialog(parent),
@@ -42,8 +44,9 @@ void Connection::closeEvent(QCloseEvent *event)
 
 void Connection::on_ConectBt_clicked()
 {
-    QString ip = ui->ipLE1->text() + '.' + ui->ipLE2->text() + '.' + ui->ipLE3->text() + '.' + ui->ipLE4->text();
-    tcpClient->connectToHost(ip,ui->PortLE->text().toInt());
+    ip = ui->ipLE1->text() + '.' + ui->ipLE2->text() + '.' + ui->ipLE3->text() + '.' + ui->ipLE4->text();
+    port = ui->PortLE->text().toInt();
+    tcpClient->connectToHost(ip,port);
     if(!tcpClient->waitForConnected(1000))
     {
         QMessageBox::information(NULL, "提醒", "连接失败");

@@ -7,6 +7,7 @@
 #include <QByteArray>
 #include <QDataStream>
 #include <QFile>
+#include <QMessageBox>
 #include "connection.h"
 
 static const unsigned short crc16tab[256]= {
@@ -54,6 +55,12 @@ public:
     bool SendFile(QString FilePath);
     void GetChar(char *rxchar,int msWaitTime = 3000);
 
+signals:
+    void SendFileFinished();
+
+public slots:
+     void StartSendFile(QString FilePath);
+
 protected:
     void run();
 
@@ -76,6 +83,7 @@ private:
     };
 
     QTcpSocket *m_tcpClient;
+    QString m_FilePath;
 };
 
 #endif // XMODEM_H

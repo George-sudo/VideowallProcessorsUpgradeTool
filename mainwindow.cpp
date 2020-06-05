@@ -1,18 +1,19 @@
 #include "mainwindow.h"
 
-//文件路径
-QString MainWindow::binfile_path = "";
-QString MainWindow::jsonfile_path = "";
-
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
+    flags = -1;
     //20200508yu: 设置标题
     this->setWindowTitle("LED拼接处理器升级软件");
     GW_connection = new Connection(parent);
     xmodem = new Xmodem(Connection::tcpClient);
+    connect(this,&MainWindow::FileSend,xmodem,&Xmodem::StartSendFile);
+    connect(Connection::tcpClient,&QTcpSocket::connected,this,&MainWindow::ScanCard);
+    connect(Connection::tcpClient,&QTcpSocket::readyRead,this,&MainWindow::ReceiveData);
+    connect(xmodem,&Xmodem::SendFileFinished,this,&MainWindow::on_upgradeBt_clicked);
     initMainWindow();
 }
 
@@ -23,6 +24,7 @@ MainWindow::~MainWindow()
 
 void MainWindow::initMainWindow()
 {
+    ui->textBrowser->setText("文件格式为.ufw");
     GM_TreeViewModel = new QStandardItemModel(ui->treeView);
     GM_TreeViewModel->setHorizontalHeaderLabels(QStringList()<<QStringLiteral("板卡")<<QStringLiteral("版本")<<QStringLiteral("升级状态")<<\
                                             QStringLiteral("版本")<<QStringLiteral("升级状态")<<QStringLiteral("版本")<<QStringLiteral("升级状态")<<QStringLiteral(""));
@@ -106,9 +108,32 @@ void MainWindow::initMainWindow()
     MultipleCheckbox.push_back(controlMultipleCheckbox);
     MultipleCheckbox.push_back(backboardMultipleCheckbox);
 
+    //留接口动态改变卡槽数量
     m_InOutCardCount = 9;
-    m_ControlBackCardCount = 9;
+    m_ControlBackCardCount = 1;
     AddLayoutItem(m_InOutCardCount,m_ControlBackCardCount);
+
+    //将板卡初始化为[空],并且将复选框设置为不能选择
+    for(int i=0; i<m_InOutCardCount; ++i)
+    {
+        GI_inputChild[i][0]->setText("[空]");
+        GI_outputChild[i][0]->setText("[空]");
+        for(int j=1; j<7; j+=2)
+        {
+            GI_inputChild[i][j]->setCheckable(false);
+            GI_outputChild[i][j]->setCheckable(false);
+        }
+    }
+    for(int i=0; i<m_ControlBackCardCount; ++i)
+    {
+        GI_controlChild[i][0]->setText("[空]");
+        GI_backboardtChild[i][0]->setText("[空]");
+        for(int j=1; j<7; j+=2)
+        {
+            GI_controlChild[i][j]->setCheckable(false);
+            GI_backboardtChild[i][j]->setCheckable(false);
+        }
+    }
 
 #if 0
 //此部分为进度条部分，不能单独控制某条控制进度条，暂时先关闭
@@ -133,29 +158,20 @@ void MainWindow::initMainWindow()
 
     //关联项目属性改变的信号和槽
     connect(GM_TreeViewModel, &QStandardItemModel::itemChanged, this, &MainWindow::treeItemChanged);
-    ui->treeView->setModel(GM_TreeViewModel);
 
-//    //unzipFile("haha");
-//    //初始化视图
-//    initView();
+    ui->treeView->setModel(GM_TreeViewModel);
+    ui->treeView->expandAll();//展开所有
+
+    //网络连接窗口
+    ConnectView();
 }
 
-#if 0
-void MainWindow::initView()
+#if 1
+void MainWindow::ConnectView()
 {
-    GM_TreeViewModel->setHorizontalHeaderLabels(QStringList()<<QStringLiteral("板卡")<<QStringLiteral("\n版本")<<QStringLiteral("MCU固件\n升级状态")<<QStringLiteral("\n版本")<<QStringLiteral("FPGA1固件\n升级状态")<<QStringLiteral("\n版本")<<QStringLiteral("FPGA2固件\n升级状态"));
-    ui->treeView->setColumnWidth(0, 240);//设置宽度
-    //填充
-    GM_TreeViewModel->appendRow(GI_input);
-    GM_TreeViewModel->appendRow(GI_output);
-    GM_TreeViewModel->appendRow(GI_control);
-    GM_TreeViewModel->appendRow(GI_backboard);
-    ui->treeView->expandAll();//展开所有
     //弹出子窗口
     GW_connection->setWindowTitle(tr("连接方式"));
-    //Qt::WindowFlags flags= GW_connection->windowFlags();
     GW_connection->setWindowFlags(GW_connection->windowFlags()&~Qt::WindowContextHelpButtonHint);
-    //topWindow->setWindowModality(Qt::ApplicationModal); //阻塞除当前窗体之外的所有的窗体
     GW_connection->setWindowModality(Qt::ApplicationModal);
     GW_connection->resize(640, 480);
     GW_connection->show();
@@ -295,73 +311,85 @@ void MainWindow::McuFpga1Fpga2FWeBox(QStandardItem *item)
         case '0':
             for(int i=0; i<m_InOutCardCount; ++i)
             {
-                GI_inputChild[i][1]->setCheckState(item->checkState());
+                if(GI_inputChild[i][1]->isCheckable())
+                    GI_inputChild[i][1]->setCheckState(item->checkState());
             }
             break;
         case '1':
             for(int i=0; i<m_InOutCardCount; ++i)
             {
-                GI_inputChild[i][3]->setCheckState(item->checkState());
+                if(GI_inputChild[i][3]->isCheckable())
+                    GI_inputChild[i][3]->setCheckState(item->checkState());
             }
             break;
         case '2':
             for(int i=0; i<m_InOutCardCount; ++i)
             {
-                GI_inputChild[i][5]->setCheckState(item->checkState());
+                if(GI_inputChild[i][5]->isCheckable())
+                    GI_inputChild[i][5]->setCheckState(item->checkState());
             }
             break;
         case '3':
             for(int i=0; i<m_InOutCardCount; ++i)
             {
-                GI_outputChild[i][1]->setCheckState(item->checkState());
+                if(GI_outputChild[i][1]->isCheckable())
+                    GI_outputChild[i][1]->setCheckState(item->checkState());
             }
             break;
         case '4':
             for(int i=0; i<m_InOutCardCount; ++i)
             {
-                GI_outputChild[i][3]->setCheckState(item->checkState());
+                if(GI_outputChild[i][3]->isCheckable())
+                    GI_outputChild[i][3]->setCheckState(item->checkState());
             }
             break;
         case '5':
             for(int i=0; i<m_InOutCardCount; ++i)
             {
-                GI_outputChild[i][5]->setCheckState(item->checkState());
+                if(GI_outputChild[i][5]->isCheckable())
+                    GI_outputChild[i][5]->setCheckState(item->checkState());
             }
             break;
         case '6':
             for(int i=0; i<m_ControlBackCardCount; ++i)
             {
-                GI_controlChild[i][1]->setCheckState(item->checkState());
+                if(GI_controlChild[i][1]->isCheckable())
+                    GI_controlChild[i][1]->setCheckState(item->checkState());
             }
             break;
         case '7':
             for(int i=0; i<m_ControlBackCardCount; ++i)
             {
-                GI_controlChild[i][3]->setCheckState(item->checkState());
+                if(GI_controlChild[i][3]->isCheckable())
+                    GI_controlChild[i][3]->setCheckState(item->checkState());
             }
             break;
         case '8':
             for(int i=0; i<m_ControlBackCardCount; ++i)
             {
-                GI_controlChild[i][5]->setCheckState(item->checkState());
+                if(GI_controlChild[i][5]->isCheckable())
+                    GI_controlChild[i][5]->setCheckState(item->checkState());
             }
             break;
         case '9':
             for(int i=0; i<m_ControlBackCardCount; ++i)
             {
-                GI_backboardtChild[i][1]->setCheckState(item->checkState());
+                if(GI_backboardtChild[i][1]->isCheckable())
+                    GI_backboardtChild[i][1]->setCheckState(item->checkState());
             }
             break;
         case 'a':
             for(int i=0; i<m_ControlBackCardCount; ++i)
             {
-                GI_backboardtChild[i][3]->setCheckState(item->checkState());
+                if(GI_backboardtChild[i][3]->isCheckable())
+                    GI_backboardtChild[i][3]->setCheckState(item->checkState());
             }
             break;
         case 'b':
             for(int i=0; i<m_ControlBackCardCount; ++i)
             {
-                GI_backboardtChild[i][5]->setCheckState(item->checkState());
+                if(GI_backboardtChild[i][5]->isCheckable())
+                    GI_backboardtChild[i][5]->setCheckState(item->checkState());
             }
             break;
         default:
@@ -456,5 +484,195 @@ Qt::CheckState MainWindow::checkSibling(QStandardItem * item)
 
 void MainWindow::on_SlectFileBt_clicked()
 {
+    //获取文件路径（包括文件名）
+    QString ufwFilePath = QFileDialog::getOpenFileName(this, tr("选择文件"),tr("*.ufw"));
+    //获取文件名
+    QStringList str= ufwFilePath.split("/");
+    QString ufwFileName = str[str.count()-1];
+    if(ufwFileName.size()>0)
+    {
+        ui->textBrowser->setText(ufwFileName);
 
+        //获取压缩包所在目录
+        QString ufwDir = ufwFilePath.mid(0,ufwFilePath.size()-ufwFileName.size());
+        //解压ufw压缩文件
+        unzipFile(ufwDir,ufwFilePath);
+    }
+}
+
+void MainWindow::ScanCard()
+{
+    QByteArray m_outBlock;
+    QDataStream out(&m_outBlock, QIODevice::WriteOnly);
+    out.setVersion(QDataStream::Qt_5_6);
+
+    m_outBlock.resize(0);
+    const char ScanCardOrder[9] = {0x42, 0x4c, 0x13 ,0x89, 0x00, 0x01, 0x00, 0x08, 0xfe};
+    out.writeRawData(ScanCardOrder,9);
+    //发送扫描板卡命令
+    Connection::tcpClient->write(m_outBlock);
+    flags = 1;
+}
+
+//升级固件
+void MainWindow::on_upgradeBt_clicked()
+{
+//    emit FileSend("E:/git/update/ts-94xx_update_firmware/TV-9411VW_LFE3-150EA-8FN672C_C1_V1.1.bin");
+//    qDebug()<<"完成";
+    QFile file("E:/git/update/ts-94xx_update_firmware/_metadata/packing.json");
+    file.open(QIODevice::ReadOnly | QIODevice::Text);
+    QString value = file.readAll();
+    file.close();
+    QJsonParseError parseJsonErr;
+    QJsonDocument document = QJsonDocument::fromJson(value.toUtf8(),&parseJsonErr);
+    QJsonObject jsonObject = document.object();
+    qDebug()<<"jsonObject[name]=="<<jsonObject["name"].toString();
+}
+
+void MainWindow::ReceiveData()
+{
+    if(flags == 1)
+    {
+        //接收通过发送扫描板卡命令，返回来的板卡信息
+        QByteArray  CardInfo = Connection::tcpClient->readAll();
+        flags = 0;
+    }
+}
+
+void MainWindow::SetCardInfoToItem(QByteArray CardInfo)
+{
+    //背板卡（暂时没有）
+
+    //控制板卡
+    if(CardInfo.at(1) == 0x00)
+    {
+        GI_controlChild[0][0]->setText("卡槽1");
+        GI_controlChild[0][1]->setCheckable(true);
+        GI_controlChild[0][3]->setCheckable(true);
+        GI_controlChild[0][5]->setCheckable(true);
+    }
+    //输入卡
+    if(CardInfo.at(0) == 0x00)
+    {
+        switch (CardInfo.at(1)) {
+        case 0x01://卡槽1
+            GI_inputChild[0][0]->setText("卡槽1");
+            GI_inputChild[0][1]->setCheckable(true);
+            GI_inputChild[0][3]->setCheckable(true);
+            GI_inputChild[0][5]->setCheckable(true);
+            break;
+        case 0x05://卡槽2
+            GI_inputChild[1][0]->setText("卡槽2");
+            GI_inputChild[1][1]->setCheckable(true);
+            GI_inputChild[1][3]->setCheckable(true);
+            GI_inputChild[1][5]->setCheckable(true);
+            break;
+        case 0x09://卡槽3
+            GI_inputChild[2][0]->setText("卡槽3");
+            GI_inputChild[2][1]->setCheckable(true);
+            GI_inputChild[2][3]->setCheckable(true);
+            GI_inputChild[2][5]->setCheckable(true);
+            break;
+        case 0x13://卡槽4
+            GI_inputChild[3][0]->setText("卡槽4");
+            GI_inputChild[3][1]->setCheckable(true);
+            GI_inputChild[3][3]->setCheckable(true);
+            GI_inputChild[3][5]->setCheckable(true);
+            break;
+        case 0x17://卡槽5
+            GI_inputChild[4][0]->setText("卡槽5");
+            GI_inputChild[4][1]->setCheckable(true);
+            GI_inputChild[4][3]->setCheckable(true);
+            GI_inputChild[4][5]->setCheckable(true);
+            break;
+        case 0x21://卡槽6
+            GI_inputChild[5][0]->setText("卡槽6");
+            GI_inputChild[5][1]->setCheckable(true);
+            GI_inputChild[5][3]->setCheckable(true);
+            GI_inputChild[5][5]->setCheckable(true);
+            break;
+        case 0x25://卡槽7
+            GI_inputChild[6][0]->setText("卡槽7");
+            GI_inputChild[6][1]->setCheckable(true);
+            GI_inputChild[6][3]->setCheckable(true);
+            GI_inputChild[6][5]->setCheckable(true);
+            break;
+        case 0x29://卡槽8
+            GI_inputChild[7][0]->setText("卡槽8");
+            GI_inputChild[7][1]->setCheckable(true);
+            GI_inputChild[7][3]->setCheckable(true);
+            GI_inputChild[7][5]->setCheckable(true);
+            break;
+        case 0x33://卡槽9
+            GI_inputChild[8][0]->setText("卡槽9");
+            GI_inputChild[8][1]->setCheckable(true);
+            GI_inputChild[8][3]->setCheckable(true);
+            GI_inputChild[8][5]->setCheckable(true);
+            break;
+        default:
+            break;
+        }
+    }
+    //输出卡
+    if(CardInfo.at(0) == 0x01)
+    {
+        switch (CardInfo.at(1)) {
+        case 0x01://卡槽1
+            GI_outputChild[0][0]->setText("卡槽1");
+            GI_outputChild[0][1]->setCheckable(true);
+            GI_outputChild[0][3]->setCheckable(true);
+            GI_outputChild[0][5]->setCheckable(true);
+            break;
+        case 0x05://卡槽2
+            GI_outputChild[1][0]->setText("卡槽2");
+            GI_outputChild[1][1]->setCheckable(true);
+            GI_outputChild[1][3]->setCheckable(true);
+            GI_outputChild[1][5]->setCheckable(true);
+            break;
+        case 0x09://卡槽3
+            GI_outputChild[2][0]->setText("卡槽3");
+            GI_outputChild[2][1]->setCheckable(true);
+            GI_outputChild[2][3]->setCheckable(true);
+            GI_outputChild[2][5]->setCheckable(true);
+            break;
+        case 0x13://卡槽4
+            GI_outputChild[3][0]->setText("卡槽4");
+            GI_outputChild[3][1]->setCheckable(true);
+            GI_outputChild[3][3]->setCheckable(true);
+            GI_outputChild[3][5]->setCheckable(true);
+            break;
+        case 0x17://卡槽5
+            GI_outputChild[4][0]->setText("卡槽5");
+            GI_outputChild[4][1]->setCheckable(true);
+            GI_outputChild[4][3]->setCheckable(true);
+            GI_outputChild[4][5]->setCheckable(true);
+            break;
+        case 0x21://卡槽6
+            GI_outputChild[5][0]->setText("卡槽6");
+            GI_outputChild[5][1]->setCheckable(true);
+            GI_outputChild[5][3]->setCheckable(true);
+            GI_outputChild[5][5]->setCheckable(true);
+            break;
+        case 0x25://卡槽7
+            GI_outputChild[6][0]->setText("卡槽7");
+            GI_outputChild[6][1]->setCheckable(true);
+            GI_outputChild[6][3]->setCheckable(true);
+            GI_outputChild[6][5]->setCheckable(true);
+            break;
+        case 0x29://卡槽8
+            GI_outputChild[7][0]->setText("卡槽8");
+            GI_outputChild[7][1]->setCheckable(true);
+            GI_outputChild[7][3]->setCheckable(true);
+            GI_outputChild[7][5]->setCheckable(true);
+            break;
+        case 0x33://卡槽9
+            GI_outputChild[8][0]->setText("卡槽9");
+            GI_outputChild[8][1]->setCheckable(true);
+            GI_outputChild[8][3]->setCheckable(true);
+            GI_outputChild[8][5]->setCheckable(true);
+            break;
+        default:
+            break;
+        }
+    }
 }

@@ -22,6 +22,8 @@ public:
 
 public:
     static QTcpSocket *tcpClient;
+    static QString ip;
+    static int port;
 
 private slots:
     void on_ConectBt_clicked();
