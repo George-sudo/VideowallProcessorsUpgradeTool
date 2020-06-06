@@ -9,7 +9,6 @@
  */
 //返回状态 0 解压成功  1 文件未找到  2 文件不是升级固件包  3 资源占用
 int unzipFile(QString Dir, QString fileNmae) {
-    qDebug()<<Dir<<fileNmae<<endl;
     JlCompress::extractDir(fileNmae, Dir);
     return 0;
 }

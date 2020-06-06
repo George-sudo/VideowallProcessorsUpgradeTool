@@ -6,6 +6,15 @@ MainWindow::MainWindow(QWidget *parent) :
 {
     ui->setupUi(this);
     flags = -1;
+    inrow = 0;
+    incol = 0;
+    outrow = 0;
+    outcol = 0;
+    conrow = 0;
+    concol = 0;
+    bacrow = 0;
+    baccol = 0;
+    CardTypeFlag = 0;
     //20200508yu: 设置标题
     this->setWindowTitle("LED拼接处理器升级软件");
     GW_connection = new Connection(parent);
@@ -13,7 +22,7 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(this,&MainWindow::FileSend,xmodem,&Xmodem::StartSendFile);
     connect(Connection::tcpClient,&QTcpSocket::connected,this,&MainWindow::ScanCard);
     connect(Connection::tcpClient,&QTcpSocket::readyRead,this,&MainWindow::ReceiveData);
-    connect(xmodem,&Xmodem::SendFileFinished,this,&MainWindow::on_upgradeBt_clicked);
+    connect(xmodem,&Xmodem::SendFileFinished,this,&MainWindow::StartUpgrade);
     initMainWindow();
 }
 
@@ -497,6 +506,10 @@ void MainWindow::on_SlectFileBt_clicked()
         QString ufwDir = ufwFilePath.mid(0,ufwFilePath.size()-ufwFileName.size());
         //解压ufw压缩文件
         unzipFile(ufwDir,ufwFilePath);
+        //保存解压目录
+        m_BinFileDirPath = ufwDir;
+        //保存.bin文件名
+        GetBinFileNameList(m_BinFileDirPath,file_list);
     }
 }
 
@@ -514,11 +527,10 @@ void MainWindow::ScanCard()
     flags = 1;
 }
 
-//升级固件
 void MainWindow::on_upgradeBt_clicked()
 {
-//    emit FileSend("E:/git/update/ts-94xx_update_firmware/TV-9411VW_LFE3-150EA-8FN672C_C1_V1.1.bin");
-//    qDebug()<<"完成";
+#if 0
+    //读取Json数据
     QFile file("E:/git/update/ts-94xx_update_firmware/_metadata/packing.json");
     file.open(QIODevice::ReadOnly | QIODevice::Text);
     QString value = file.readAll();
@@ -526,7 +538,347 @@ void MainWindow::on_upgradeBt_clicked()
     QJsonParseError parseJsonErr;
     QJsonDocument document = QJsonDocument::fromJson(value.toUtf8(),&parseJsonErr);
     QJsonObject jsonObject = document.object();
-    qDebug()<<"jsonObject[name]=="<<jsonObject["name"].toString();
+
+    if(jsonObject.contains(QStringLiteral("update_firmware")))
+    {
+        QJsonValue Value = jsonObject.value(QStringLiteral("update_firmware"));
+        QJsonObject a = Value.toObject();
+        qDebug()<<a["single_board"].toObject()["TS-9436HM-PJ"].toObject()["FPGA1"].toObject()["md5"];
+    }
+#endif
+    if(ui->textBrowser->toPlainText()=="文件格式为.ufw" || ui->textBrowser->toPlainText()=="")
+    {
+//        QMessageBox::information(NULL, "提醒", "固件升级完成，重启设备后生效");
+    }
+    else{
+        //开始升级
+        StartUpgrade();
+    }
+}
+
+void MainWindow::StartUpgrade(QString condition)
+{
+    QString str;
+    QByteArray m_outBlock;
+    QDataStream out(&m_outBlock, QIODevice::WriteOnly);
+    out.setVersion(QDataStream::Qt_5_6);
+    switch (CardTypeFlag) {
+    case 0:
+        break;
+    case 1://condition是输入卡升级信息
+        GI_inputChild[inrow-1][incol]->setText(condition);
+        break;
+    case 2://condition是输入卡升级信息
+        GI_inputChild[inrow][incol-1]->setText(condition);
+        break;
+    case 3://condition是输出卡升级信息
+        GI_outputChild[inrow-1][incol]->setText(condition);
+        break;
+    case 4://condition是输出卡升级信息
+        GI_outputChild[inrow][incol-1]->setText(condition);
+        break;
+    case 5://condition是控制卡升级信息
+        GI_controlChild[inrow-1][incol]->setText(condition);
+        break;
+    case 6://condition是控制卡升级信息
+        GI_controlChild[inrow][incol-1]->setText(condition);
+        break;
+//    case 7://condition是背卡升级信息（暂时没有背板）
+//        GI_backboardtChild[inrow-1][incol]->setText(condition);
+//        break;
+//    case 8://condition是背卡升级信息
+//        GI_backboardtChild[inrow][incol-1]->setText(condition);
+//        break;
+    default:
+        break;
+    }
+
+    //查找输入卡需要升级的固件
+    for(; inrow<GI_inputChild.size(); ++inrow)
+    {
+        for(; incol<GI_inputChild[0].size(); ++incol)
+        {
+           if(GI_inputChild[inrow][incol]->checkState() == Qt::Checked)
+           {
+               //升级固件
+               m_outBlock.resize(0);
+               char UpgradeOrder[12] = {0x42, 0x4c, 0x13, 0x89, 0x00, 0x01, 0x00, 0x35, 0x00};
+               //判断卡槽
+               switch (inrow+1) {
+               case 1:
+                   UpgradeOrder[9] = 0x01;
+                   break;
+               case 2:
+                   UpgradeOrder[9] = 0x05;
+                   break;
+               case 3:
+                   UpgradeOrder[9] = 0x09;
+                   break;
+               case 4:
+                   UpgradeOrder[9] = 0x13;
+                   break;
+               case 5:
+                   UpgradeOrder[9] = 0x17;
+                   break;
+               case 6:
+                   UpgradeOrder[9] = 0x21;
+                   break;
+               case 7:
+                   UpgradeOrder[9] = 0x25;
+                   break;
+               case 8:
+                   UpgradeOrder[9] = 0x29;
+                   break;
+               case 9:
+                   UpgradeOrder[9] = 0x33;
+                   break;
+               default:
+                   break;
+               }
+               //判断固件升级类型
+               switch (incol){
+               case 1://mcu
+                   UpgradeOrder[10] = 0x01;
+                   //查找升级的固件路径（带固件名）
+                   str = FindBinPath("hi","mcu");
+                   break;
+               case 3://fpga1
+                   UpgradeOrder[10] = 0x02;
+                   //查找升级的固件路径（带固件名）
+                   str = FindBinPath("hi","fpga1");
+                   break;
+               case 5://fpga2
+                   UpgradeOrder[10] = 0x03;
+                   //查找升级的固件路径（带固件名）
+                   str = FindBinPath("hi","fpga2");
+                   break;
+               default:
+                   break;
+               }
+               UpgradeOrder[11] = 0xfe;
+               out.writeRawData(UpgradeOrder,12);
+               if(str != "not exist")
+               {
+                   //发送板卡升级命令
+                   Connection::tcpClient->write(m_outBlock);
+                   emit FileSend(str);
+                   GI_inputChild[inrow][incol]->setText("正在升级...");
+
+                   if(incol == GI_inputChild[0].size()-1)
+                   {
+                       //标记是什么板卡升级，用于显示进度
+                       CardTypeFlag = 1;//输入卡
+                       ++inrow;
+                   }
+                   else{
+                       //标记是什么板卡升级，用于显示进度
+                       CardTypeFlag = 2;//输入卡
+                       ++incol;
+                   }
+                   return;
+               }
+               else
+                   qDebug()<<"没有此固件类型";
+           }
+        }
+    }
+
+    //查找输出卡需要升级的固件
+    for(; outrow<GI_outputChild.size(); ++outrow)
+    {
+        for(; outcol<GI_outputChild[0].size(); ++outcol)
+        {
+           if(GI_outputChild[outrow][outcol]->checkState() == Qt::Checked)
+           {
+               //升级固件
+               m_outBlock.resize(0);
+               char UpgradeOrder[12] = {0x42, 0x4c, 0x13, 0x89, 0x00, 0x01, 0x00, 0x35, 0x00};
+               //判断卡槽
+               switch (outrow+1) {
+               case 1:
+                   UpgradeOrder[9] = 0x01;
+                   break;
+               case 2:
+                   UpgradeOrder[9] = 0x05;
+                   break;
+               case 3:
+                   UpgradeOrder[9] = 0x09;
+                   break;
+               case 4:
+                   UpgradeOrder[9] = 0x13;
+                   break;
+               case 5:
+                   UpgradeOrder[9] = 0x17;
+                   break;
+               case 6:
+                   UpgradeOrder[9] = 0x21;
+                   break;
+               case 7:
+                   UpgradeOrder[9] = 0x25;
+                   break;
+               case 8:
+                   UpgradeOrder[9] = 0x29;
+                   break;
+               case 9:
+                   UpgradeOrder[9] = 0x33;
+                   break;
+               default:
+                   break;
+               }
+               //判断固件升级类型
+               switch (outcol){
+               case 1://mcu
+                   UpgradeOrder[10] = 0x01;
+                   //查找升级的固件路径（带固件名）
+                   str = FindBinPath("ho","mcu");
+                   break;
+               case 3://fpga1
+                   UpgradeOrder[10] = 0x02;
+                   //查找升级的固件路径（带固件名）
+                   str = FindBinPath("ho","fpga1");
+                   break;
+               case 5://fpga2
+                   UpgradeOrder[10] = 0x03;
+                   //查找升级的固件路径（带固件名）
+                   str = FindBinPath("ho","fpga2");
+                   break;
+               default:
+                   break;
+               }
+               UpgradeOrder[11] = 0xfe;
+               out.writeRawData(UpgradeOrder,12);
+               if(str != "not exist")
+               {
+                   //发送板卡升级命令
+                   Connection::tcpClient->write(m_outBlock);
+                   emit FileSend(str);
+                   GI_outputChild[outrow][outcol]->setText("正在升级...");
+
+                   if(outcol == GI_outputChild[0].size()-1)
+                   {
+                       //标记是什么板卡升级，用于显示进度
+                       CardTypeFlag = 3;//输出卡
+                       ++outrow;
+                   }
+                   else{
+                       //标记是什么板卡升级，用于显示进度
+                       CardTypeFlag = 4;//输出卡
+                       ++outcol;
+                   }
+                   return;
+               }
+               else
+                   qDebug()<<"没有此固件类型";
+           }
+        }
+    }
+
+    //查找控制卡需要升级的固件
+    for(; conrow<GI_controlChild.size(); ++conrow)
+    {
+        for(; concol<GI_controlChild[0].size(); ++concol)
+        {
+           if(GI_controlChild[conrow][concol]->checkState() == Qt::Checked)
+           {
+               //升级固件
+               m_outBlock.resize(0);
+               char UpgradeOrder[12] = {0x42, 0x4c, 0x13, 0x89, 0x00, 0x01, 0x00, 0x35, 0x00};
+               //判断卡槽
+               switch (conrow+1) {
+               case 1:
+                   UpgradeOrder[9] = 0x01;
+                   break;
+               default:
+                   break;
+               }
+               //判断固件升级类型
+               switch (concol){
+               case 1://mcu
+                   UpgradeOrder[10] = 0x01;
+                   //查找升级的固件路径（带固件名）
+                   str = FindBinPath("con","mcu");
+                   break;
+               case 3://fpga1
+                   UpgradeOrder[10] = 0x02;
+                   //查找升级的固件路径（带固件名）
+                   str = FindBinPath("con","fpga1");
+                   break;
+               case 5://fpga2
+                   UpgradeOrder[10] = 0x03;
+                   //查找升级的固件路径（带固件名）
+                   str = FindBinPath("con","fpga2");
+                   break;
+               default:
+                   break;
+               }
+               UpgradeOrder[11] = 0xfe;
+               out.writeRawData(UpgradeOrder,12);
+               if(str != "not exist")
+               {
+                   //发送板卡升级命令
+                   Connection::tcpClient->write(m_outBlock);
+                   emit FileSend(str);
+                   GI_controlChild[conrow][concol]->setText("正在升级...");
+
+                   if(concol == GI_controlChild[0].size()-1)
+                   {
+                       //标记是什么板卡升级，用于显示进度
+                       CardTypeFlag = 5;//控制卡
+                       ++conrow;
+                   }
+                   else{
+                       //标记是什么板卡升级，用于显示进度
+                       CardTypeFlag = 6;//控制卡
+                       ++concol;
+                   }
+                   return;
+               }
+               else
+                   qDebug()<<"没有此固件类型";
+           }
+        }
+    }
+
+    //查找背卡需要升级的固件（暂时没有）
+
+    //升级完成
+    QMessageBox::information(NULL, "提醒", "固件升级完成，重启设备后生效");
+}
+
+//查找升级的固件路径（带固件名）
+QString MainWindow::FindBinPath(QString CardType, QString  FirmwareTpye)
+{
+    QString BinPath;
+    for(int i=0; i<file_list.size(); ++i)
+    {
+        if(file_list[i].contains(CardType,Qt::CaseInsensitive) && file_list[i].contains(FirmwareTpye,Qt::CaseInsensitive))
+        {
+            BinPath = m_BinFileDirPath + file_list[i];
+            return BinPath;
+        }
+    }
+
+    BinPath =  "not exist";
+    return BinPath;
+}
+
+//获取.bin固件名
+int MainWindow::GetBinFileNameList(QString BinFileDirPath, QStringList &file_list)
+{
+    QDir dir(BinFileDirPath);
+    QStringList nameFilters;
+
+    if (dir.exists())   //判断目录是否存在
+    {
+        nameFilters << "*.bin";
+        file_list = dir.entryList(nameFilters,QDir::Files | QDir::NoDotAndDotDot);
+    }
+    else{
+        file_list.clear();
+        qDebug() << "该目录不存在！！！";
+        return -1;
+    }
+    return 0;
 }
 
 void MainWindow::ReceiveData()

@@ -50,7 +50,7 @@ bool Xmodem::SendFile(QString FilePath)
     }
     //重启后获取“C”
     while(0 == rxChar)
-        GetChar(&rxChar);
+        GetChar(&rxChar,3000);
     if(rxChar != XMDM_CRC)
     {
         qDebug()<<"Error!未接受到应答信号XMDM_CRC！";
@@ -122,7 +122,7 @@ NextStep:
             goto NextStep;
             break;
         case XMDM_CAN:
-            return true;
+            return false;
             break;
         default:
             break;
@@ -150,6 +150,8 @@ void Xmodem::StartSendFile(QString FilePath)
 
 void Xmodem::run()
 {
-    SendFile(m_FilePath);
-    emit SendFileFinished();
+    if(SendFile(m_FilePath))
+        emit SendFileFinished("升级完成");
+    else
+        emit SendFileFinished("升级失败");
 }

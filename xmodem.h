@@ -56,7 +56,7 @@ public:
     void GetChar(char *rxchar,int msWaitTime = 3000);
 
 signals:
-    void SendFileFinished();
+    void SendFileFinished(QString condition);
 
 public slots:
      void StartSendFile(QString FilePath);

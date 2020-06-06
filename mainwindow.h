@@ -50,6 +50,9 @@ public:
     //MCU、FPGA1、FPGA2固件复选框
     void McuFpga1Fpga2FWeBox(QStandardItem *item);
     void SetCardInfoToItem(QByteArray CardInfo);
+    int GetBinFileNameList(QString BinFileDirPath, QStringList &file_list);
+    QString FindBinPath(QString CardType, QString  FirmwareTpye);
+    void StartUpgrade(QString condition="");
 
 signals:
     void FileSend(QString BinFilePath);
@@ -62,8 +65,19 @@ private slots :
     void ReceiveData();
 
 public:
+    QString m_BinFileDirPath;
     QString m_BinFilePath;
     QString m_JsonFilePath;
+    QStringList file_list;
+    uint CardTypeFlag;
+    uint inrow;
+    uint incol;
+    uint outrow;
+    uint outcol;
+    uint conrow;
+    uint concol;
+    uint bacrow;
+    uint baccol;
 
 private:
     Ui::MainWindow *ui;
