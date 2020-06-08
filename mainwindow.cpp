@@ -1,11 +1,13 @@
 #include "mainwindow.h"
 
+int MainWindow::flags = -1;
+
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
-    flags = -1;
+
     inrow = 0;
     incol = 0;
     outrow = 0;
@@ -20,8 +22,10 @@ MainWindow::MainWindow(QWidget *parent) :
     GW_connection = new Connection(parent);
     xmodem = new Xmodem(Connection::tcpClient);
     connect(this,&MainWindow::FileSend,xmodem,&Xmodem::StartSendFile);
-    connect(Connection::tcpClient,&QTcpSocket::connected,this,&MainWindow::ScanCard);
+//    connect(Connection::tcpClient,&QTcpSocket::connected,this,&MainWindow::ScanCard);
     connect(Connection::tcpClient,&QTcpSocket::readyRead,this,&MainWindow::ReceiveData);
+    timer = new QTimer(this);
+    connect(MainWindow::timer, &QTimer::timeout, this, &MainWindow::ReceiveCardInfo);
     connect(xmodem,&Xmodem::SendFileFinished,this,&MainWindow::StartUpgrade);
     initMainWindow();
 }
@@ -175,7 +179,7 @@ void MainWindow::initMainWindow()
     ConnectView();
 }
 
-#if 1
+/***连接界面***/
 void MainWindow::ConnectView()
 {
     //弹出子窗口
@@ -185,7 +189,6 @@ void MainWindow::ConnectView()
     GW_connection->resize(640, 480);
     GW_connection->show();
 }
-#endif
 
 /***增加并布局所有板卡类型展开的item控件***/
 void MainWindow::AddLayoutItem(int InOutCardCount, int ControlBackCardCount)
@@ -311,7 +314,7 @@ void MainWindow::treeItemChanged(QStandardItem *item)
 /***MCU、FPGA1、FPGA2固件复选框功能实现***/
 void MainWindow::McuFpga1Fpga2FWeBox(QStandardItem *item)
 {
-    qDebug()<<item->accessibleDescription();
+//    qDebug()<<item->accessibleDescription();
     if(item->accessibleDescription().size() > 0)
     {
         //全选与全不选
@@ -513,6 +516,7 @@ void MainWindow::on_SlectFileBt_clicked()
     }
 }
 
+/***扫描板卡信息***/
 void MainWindow::ScanCard()
 {
     QByteArray m_outBlock;
@@ -520,8 +524,14 @@ void MainWindow::ScanCard()
     out.setVersion(QDataStream::Qt_5_6);
 
     m_outBlock.resize(0);
-    const char ScanCardOrder[9] = {0x42, 0x4c, 0x13 ,0x89, 0x00, 0x01, 0x00, 0x08, 0xfe};
+    char ScanCardOrder[9] = {0x42, 0x4c, 0x13 ,0x89, 0x00, 0x01, 0x00, 0x08, 0xfe};//0x42, 0x4c, 0x13 ,0x89, 0x00, 0x01, 0x00, 0x08, 0xfe
     out.writeRawData(ScanCardOrder,9);
+//    for(int i=0; i<9; ++i)
+//    {
+//        qDebug("%#x",m_outBlock.at(i));
+//        qDebug("%#x",ScanCardOrder[i]);
+//    }
+
     //发送扫描板卡命令
     Connection::tcpClient->write(m_outBlock);
     flags = 1;
@@ -548,7 +558,6 @@ void MainWindow::on_upgradeBt_clicked()
 #endif
     if(ui->textBrowser->toPlainText()=="文件格式为.ufw" || ui->textBrowser->toPlainText()=="")
     {
-//        QMessageBox::information(NULL, "提醒", "固件升级完成，重启设备后生效");
     }
     else{
         //开始升级
@@ -845,7 +854,7 @@ void MainWindow::StartUpgrade(QString condition)
     QMessageBox::information(NULL, "提醒", "固件升级完成，重启设备后生效");
 }
 
-//查找升级的固件路径（带固件名）
+/***查找升级的固件路径（带固件名）***/
 QString MainWindow::FindBinPath(QString CardType, QString  FirmwareTpye)
 {
     QString BinPath;
@@ -862,7 +871,7 @@ QString MainWindow::FindBinPath(QString CardType, QString  FirmwareTpye)
     return BinPath;
 }
 
-//获取.bin固件名
+/***获取.bin固件名***/
 int MainWindow::GetBinFileNameList(QString BinFileDirPath, QStringList &file_list)
 {
     QDir dir(BinFileDirPath);
@@ -881,150 +890,241 @@ int MainWindow::GetBinFileNameList(QString BinFileDirPath, QStringList &file_lis
     return 0;
 }
 
+/***过滤掉"Connect Success!\r\n"字符串，然后发送扫描板卡信号***/
 void MainWindow::ReceiveData()
 {
+    //连接成功后第一次返回"Connect Success!\r\n"字符串，读取数据后发送扫描板卡命令
+    if(flags == -1)
+    {
+        QByteArray FirstData = Connection::tcpClient->readAll();
+        qDebug()<<"FirstData"<<FirstData;
+        if(FirstData.toStdString()=="Connect Success!\r\n")
+        {
+            //显示控制卡信息（暂不支持升级）
+            GI_controlChild[0][0]->setText("卡槽1");
+            GI_controlChild[0][1]->setText("[空]");
+            GI_controlChild[0][2]->setText("暂不支持升级");
+            GI_controlChild[0][3]->setText("[空]");
+            GI_controlChild[0][4]->setText("暂不支持升级");
+            GI_controlChild[0][5]->setText("[空]");
+            GI_controlChild[0][6]->setText("暂不支持升级");
+            //扫描板卡
+            ScanCard();
+            timer->start(1000);//等待控制卡把所有板卡信息返回来，再去读取板卡信息
+            flags = 0;//过滤完成，设置标志位为0
+        }
+    }
+
+    //板卡重启之后，再次连接时，过滤"Connect Success!\r\n"字符串，此时不扫描板卡信息
     if(flags == 1)
     {
-        //接收通过发送扫描板卡命令，返回来的板卡信息
-        QByteArray  CardInfo = Connection::tcpClient->readAll();
-        flags = 0;
+        QByteArray FirstLaterData = Connection::tcpClient->readAll();
+        qDebug()<<"FirstLaterData"<<FirstLaterData;
+        if(FirstLaterData.toStdString()=="Connect Success!\r\n")
+        {
+            flags = 0;//过滤完成，设置标志位为0
+        }
     }
 }
 
-void MainWindow::SetCardInfoToItem(QByteArray CardInfo)
+/***接收板卡信息***/
+void MainWindow::ReceiveCardInfo()
 {
-    //背板卡（暂时没有）
+    timer->stop();//停止定时器
+    m_CardInfo.resize(0);
+    m_CardInfo = Connection::tcpClient->readAll();
+//    for(int i = 0; i<m_CardInfo.size(); ++i)
+//    {
+//        qDebug("%#x",m_CardInfo.at(i));
+//    }
+    SetCardInfoToItem(m_CardInfo);
+}
 
-    //控制板卡
-    if(CardInfo.at(1) == 0x00)
+/***设置界面板卡信息***/
+void MainWindow::SetCardInfoToItem(QByteArray &CardInfo)
+{
+    QByteArray ary;
+    for(int i=0; i<CardInfo.size()/10; ++i)
     {
-        GI_controlChild[0][0]->setText("卡槽1");
-        GI_controlChild[0][1]->setCheckable(true);
-        GI_controlChild[0][3]->setCheckable(true);
-        GI_controlChild[0][5]->setCheckable(true);
-    }
-    //输入卡
-    if(CardInfo.at(0) == 0x00)
-    {
-        switch (CardInfo.at(1)) {
-        case 0x01://卡槽1
-            GI_inputChild[0][0]->setText("卡槽1");
-            GI_inputChild[0][1]->setCheckable(true);
-            GI_inputChild[0][3]->setCheckable(true);
-            GI_inputChild[0][5]->setCheckable(true);
-            break;
-        case 0x05://卡槽2
-            GI_inputChild[1][0]->setText("卡槽2");
-            GI_inputChild[1][1]->setCheckable(true);
-            GI_inputChild[1][3]->setCheckable(true);
-            GI_inputChild[1][5]->setCheckable(true);
-            break;
-        case 0x09://卡槽3
-            GI_inputChild[2][0]->setText("卡槽3");
-            GI_inputChild[2][1]->setCheckable(true);
-            GI_inputChild[2][3]->setCheckable(true);
-            GI_inputChild[2][5]->setCheckable(true);
-            break;
-        case 0x13://卡槽4
-            GI_inputChild[3][0]->setText("卡槽4");
-            GI_inputChild[3][1]->setCheckable(true);
-            GI_inputChild[3][3]->setCheckable(true);
-            GI_inputChild[3][5]->setCheckable(true);
-            break;
-        case 0x17://卡槽5
-            GI_inputChild[4][0]->setText("卡槽5");
-            GI_inputChild[4][1]->setCheckable(true);
-            GI_inputChild[4][3]->setCheckable(true);
-            GI_inputChild[4][5]->setCheckable(true);
-            break;
-        case 0x21://卡槽6
-            GI_inputChild[5][0]->setText("卡槽6");
-            GI_inputChild[5][1]->setCheckable(true);
-            GI_inputChild[5][3]->setCheckable(true);
-            GI_inputChild[5][5]->setCheckable(true);
-            break;
-        case 0x25://卡槽7
-            GI_inputChild[6][0]->setText("卡槽7");
-            GI_inputChild[6][1]->setCheckable(true);
-            GI_inputChild[6][3]->setCheckable(true);
-            GI_inputChild[6][5]->setCheckable(true);
-            break;
-        case 0x29://卡槽8
-            GI_inputChild[7][0]->setText("卡槽8");
-            GI_inputChild[7][1]->setCheckable(true);
-            GI_inputChild[7][3]->setCheckable(true);
-            GI_inputChild[7][5]->setCheckable(true);
-            break;
-        case 0x33://卡槽9
-            GI_inputChild[8][0]->setText("卡槽9");
-            GI_inputChild[8][1]->setCheckable(true);
-            GI_inputChild[8][3]->setCheckable(true);
-            GI_inputChild[8][5]->setCheckable(true);
-            break;
-        default:
-            break;
+//        qDebug()<<"oneCardData";
+        ary.resize(0);
+        ary = CardInfo.mid(i*10,10);
+//        for(int j = 0; j<ary.size(); ++j)
+//        {
+//            qDebug("%#x",ary.at(j));
+//        }
+
+        //背板卡（暂时没有）
+
+        //控制板卡
+        if(ary.at(1) == 0)
+        {
+            GI_controlChild[0][0]->setText("卡槽1");
+            GI_controlChild[0][1]->setCheckable(true);
+            GI_controlChild[0][3]->setCheckable(true);
+            GI_controlChild[0][5]->setCheckable(true);
+            //版本号
+            GI_controlChild[0][1]->setText(QString("V%1.%2").arg(ary.at(9)>>4).arg(ary.at(9)&0x0f));
         }
-    }
-    //输出卡
-    if(CardInfo.at(0) == 0x01)
-    {
-        switch (CardInfo.at(1)) {
-        case 0x01://卡槽1
-            GI_outputChild[0][0]->setText("卡槽1");
-            GI_outputChild[0][1]->setCheckable(true);
-            GI_outputChild[0][3]->setCheckable(true);
-            GI_outputChild[0][5]->setCheckable(true);
-            break;
-        case 0x05://卡槽2
-            GI_outputChild[1][0]->setText("卡槽2");
-            GI_outputChild[1][1]->setCheckable(true);
-            GI_outputChild[1][3]->setCheckable(true);
-            GI_outputChild[1][5]->setCheckable(true);
-            break;
-        case 0x09://卡槽3
-            GI_outputChild[2][0]->setText("卡槽3");
-            GI_outputChild[2][1]->setCheckable(true);
-            GI_outputChild[2][3]->setCheckable(true);
-            GI_outputChild[2][5]->setCheckable(true);
-            break;
-        case 0x13://卡槽4
-            GI_outputChild[3][0]->setText("卡槽4");
-            GI_outputChild[3][1]->setCheckable(true);
-            GI_outputChild[3][3]->setCheckable(true);
-            GI_outputChild[3][5]->setCheckable(true);
-            break;
-        case 0x17://卡槽5
-            GI_outputChild[4][0]->setText("卡槽5");
-            GI_outputChild[4][1]->setCheckable(true);
-            GI_outputChild[4][3]->setCheckable(true);
-            GI_outputChild[4][5]->setCheckable(true);
-            break;
-        case 0x21://卡槽6
-            GI_outputChild[5][0]->setText("卡槽6");
-            GI_outputChild[5][1]->setCheckable(true);
-            GI_outputChild[5][3]->setCheckable(true);
-            GI_outputChild[5][5]->setCheckable(true);
-            break;
-        case 0x25://卡槽7
-            GI_outputChild[6][0]->setText("卡槽7");
-            GI_outputChild[6][1]->setCheckable(true);
-            GI_outputChild[6][3]->setCheckable(true);
-            GI_outputChild[6][5]->setCheckable(true);
-            break;
-        case 0x29://卡槽8
-            GI_outputChild[7][0]->setText("卡槽8");
-            GI_outputChild[7][1]->setCheckable(true);
-            GI_outputChild[7][3]->setCheckable(true);
-            GI_outputChild[7][5]->setCheckable(true);
-            break;
-        case 0x33://卡槽9
-            GI_outputChild[8][0]->setText("卡槽9");
-            GI_outputChild[8][1]->setCheckable(true);
-            GI_outputChild[8][3]->setCheckable(true);
-            GI_outputChild[8][5]->setCheckable(true);
-            break;
-        default:
-            break;
+        //输入卡
+        if(ary.at(0) == 0x00)
+        {
+            switch (ary.at(1)) {
+            case 1://卡槽1
+                GI_inputChild[0][0]->setText("卡槽1");
+                GI_inputChild[0][1]->setCheckable(true);
+                GI_inputChild[0][3]->setCheckable(true);
+                GI_inputChild[0][5]->setCheckable(true);
+                //版本号
+                GI_inputChild[0][1]->setText(QString("V%1.%2").arg(ary.at(9)>>4).arg(ary.at(9)&0x0f));
+                break;
+            case 5://卡槽2
+                GI_inputChild[1][0]->setText("卡槽2");
+                GI_inputChild[1][1]->setCheckable(true);
+                GI_inputChild[1][3]->setCheckable(true);
+                GI_inputChild[1][5]->setCheckable(true);
+                //版本号
+                GI_inputChild[1][1]->setText(QString("V%1.%2").arg(ary.at(9)>>4).arg(ary.at(9)&0x0f));
+                break;
+            case 9://卡槽3
+                GI_inputChild[2][0]->setText("卡槽3");
+                GI_inputChild[2][1]->setCheckable(true);
+                GI_inputChild[2][3]->setCheckable(true);
+                GI_inputChild[2][5]->setCheckable(true);
+                //版本号
+                GI_inputChild[2][1]->setText(QString("V%1.%2").arg(ary.at(9)>>4).arg(ary.at(9)&0x0f));
+                break;
+            case 13://卡槽4
+                GI_inputChild[3][0]->setText("卡槽4");
+                GI_inputChild[3][1]->setCheckable(true);
+                GI_inputChild[3][3]->setCheckable(true);
+                GI_inputChild[3][5]->setCheckable(true);
+                //版本号
+                GI_inputChild[3][1]->setText(QString("V%1.%2").arg(ary.at(9)>>4).arg(ary.at(9)&0x0f));
+                break;
+            case 17://卡槽5
+                GI_inputChild[4][0]->setText("卡槽5");
+                GI_inputChild[4][1]->setCheckable(true);
+                GI_inputChild[4][3]->setCheckable(true);
+                GI_inputChild[4][5]->setCheckable(true);
+                //版本号
+                GI_inputChild[4][1]->setText(QString("V%1.%2").arg(ary.at(9)>>4).arg(ary.at(9)&0x0f));
+                break;
+            case 21://卡槽6
+                GI_inputChild[5][0]->setText("卡槽6");
+                GI_inputChild[5][1]->setCheckable(true);
+                GI_inputChild[5][3]->setCheckable(true);
+                GI_inputChild[5][5]->setCheckable(true);
+                //版本号
+                GI_inputChild[5][1]->setText(QString("V%1.%2").arg(ary.at(9)>>4).arg(ary.at(9)&0x0f));
+                break;
+            case 25://卡槽7
+                GI_inputChild[6][0]->setText("卡槽7");
+                GI_inputChild[6][1]->setCheckable(true);
+                GI_inputChild[6][3]->setCheckable(true);
+                GI_inputChild[6][5]->setCheckable(true);
+                //版本号
+                GI_inputChild[6][1]->setText(QString("V%1.%2").arg(ary.at(9)>>4).arg(ary.at(9)&0x0f));
+                break;
+            case 29://卡槽8
+                GI_inputChild[7][0]->setText("卡槽8");
+                GI_inputChild[7][1]->setCheckable(true);
+                GI_inputChild[7][3]->setCheckable(true);
+                GI_inputChild[7][5]->setCheckable(true);
+                //版本号
+                GI_inputChild[7][1]->setText(QString("V%1.%2").arg(ary.at(9)>>4).arg(ary.at(9)&0x0f));
+                break;
+            case 33://卡槽9
+                GI_inputChild[8][0]->setText("卡槽9");
+                GI_inputChild[8][1]->setCheckable(true);
+                GI_inputChild[8][3]->setCheckable(true);
+                GI_inputChild[8][5]->setCheckable(true);
+                //版本号
+                GI_inputChild[8][1]->setText(QString("V%1.%2").arg(ary.at(9)>>4).arg(ary.at(9)&0x0f));
+                break;
+            default:
+                break;
+            }
+        }
+        //输出卡
+        if(ary.at(0) == 0x01)
+        {
+            switch (ary.at(1)) {
+            case 0x01://卡槽1
+                GI_outputChild[0][0]->setText("卡槽1");
+                GI_outputChild[0][1]->setCheckable(true);
+                GI_outputChild[0][3]->setCheckable(true);
+                GI_outputChild[0][5]->setCheckable(true);
+                //版本号
+                GI_outputChild[0][1]->setText(QString("V%1.%2").arg(ary.at(9)>>4).arg(ary.at(9)&0x0f));
+                break;
+            case 0x05://卡槽2
+                GI_outputChild[1][0]->setText("卡槽2");
+                GI_outputChild[1][1]->setCheckable(true);
+                GI_outputChild[1][3]->setCheckable(true);
+                GI_outputChild[1][5]->setCheckable(true);
+                //版本号
+                GI_outputChild[1][1]->setText(QString("V%1.%2").arg(ary.at(9)>>4).arg(ary.at(9)&0x0f));
+                break;
+            case 0x09://卡槽3
+                GI_outputChild[2][0]->setText("卡槽3");
+                GI_outputChild[2][1]->setCheckable(true);
+                GI_outputChild[2][3]->setCheckable(true);
+                GI_outputChild[2][5]->setCheckable(true);
+                //版本号
+                GI_outputChild[2][1]->setText(QString("V%1.%2").arg(ary.at(9)>>4).arg(ary.at(9)&0x0f));
+                break;
+            case 0x13://卡槽4
+                GI_outputChild[3][0]->setText("卡槽4");
+                GI_outputChild[3][1]->setCheckable(true);
+                GI_outputChild[3][3]->setCheckable(true);
+                GI_outputChild[3][5]->setCheckable(true);
+                //版本号
+                GI_outputChild[3][1]->setText(QString("V%1.%2").arg(ary.at(9)>>4).arg(ary.at(9)&0x0f));
+                break;
+            case 0x17://卡槽5
+                GI_outputChild[4][0]->setText("卡槽5");
+                GI_outputChild[4][1]->setCheckable(true);
+                GI_outputChild[4][3]->setCheckable(true);
+                GI_outputChild[4][5]->setCheckable(true);
+                //版本号
+                GI_outputChild[4][1]->setText(QString("V%1.%2").arg(ary.at(9)>>4).arg(ary.at(9)&0x0f));
+                break;
+            case 0x21://卡槽6
+                GI_outputChild[5][0]->setText("卡槽6");
+                GI_outputChild[5][1]->setCheckable(true);
+                GI_outputChild[5][3]->setCheckable(true);
+                GI_outputChild[5][5]->setCheckable(true);
+                //版本号
+                GI_outputChild[5][1]->setText(QString("V%1.%2").arg(ary.at(9)>>4).arg(ary.at(9)&0x0f));
+                break;
+            case 0x25://卡槽7
+                GI_outputChild[6][0]->setText("卡槽7");
+                GI_outputChild[6][1]->setCheckable(true);
+                GI_outputChild[6][3]->setCheckable(true);
+                GI_outputChild[6][5]->setCheckable(true);
+                //版本号
+                GI_outputChild[6][1]->setText(QString("V%1.%2").arg(ary.at(9)>>4).arg(ary.at(9)&0x0f));
+                break;
+            case 0x29://卡槽8
+                GI_outputChild[7][0]->setText("卡槽8");
+                GI_outputChild[7][1]->setCheckable(true);
+                GI_outputChild[7][3]->setCheckable(true);
+                GI_outputChild[7][5]->setCheckable(true);
+                //版本号
+                GI_outputChild[7][1]->setText(QString("V%1.%2").arg(ary.at(9)>>4).arg(ary.at(9)&0x0f));
+                break;
+            case 0x33://卡槽9
+                GI_outputChild[8][0]->setText("卡槽9");
+                GI_outputChild[8][1]->setCheckable(true);
+                GI_outputChild[8][3]->setCheckable(true);
+                GI_outputChild[8][5]->setCheckable(true);
+                //版本号
+                GI_outputChild[8][1]->setText(QString("V%1.%2").arg(ary.at(9)>>4).arg(ary.at(9)&0x0f));
+                break;
+            default:
+                break;
+            }
         }
     }
 }

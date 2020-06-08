@@ -21,6 +21,7 @@
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QJsonValue>
+#include <QTimer>
 
 namespace Ui {
 class MainWindow;
@@ -49,10 +50,11 @@ public:
     void AddLayoutItem(int InOutCardCount, int ControlBackCardCount);
     //MCU、FPGA1、FPGA2固件复选框
     void McuFpga1Fpga2FWeBox(QStandardItem *item);
-    void SetCardInfoToItem(QByteArray CardInfo);
+    void SetCardInfoToItem(QByteArray &CardInfo);
     int GetBinFileNameList(QString BinFileDirPath, QStringList &file_list);
     QString FindBinPath(QString CardType, QString  FirmwareTpye);
     void StartUpgrade(QString condition="");
+    void ScanCard();
 
 signals:
     void FileSend(QString BinFilePath);
@@ -60,9 +62,9 @@ signals:
 private slots :
     void treeItemChanged( QStandardItem * item );
     void on_SlectFileBt_clicked();
-    void ScanCard();
     void on_upgradeBt_clicked();
     void ReceiveData();
+    void ReceiveCardInfo();
 
 public:
     QString m_BinFileDirPath;
@@ -78,6 +80,7 @@ public:
     uint concol;
     uint bacrow;
     uint baccol;
+    static int flags;
 
 private:
     Ui::MainWindow *ui;
@@ -91,7 +94,8 @@ private:
     std::vector<std::vector<QStandardItem*>> GI_backboardtChild;
     int m_InOutCardCount;
     int m_ControlBackCardCount;
-    int flags;
+    QByteArray m_CardInfo;
+    QTimer *timer;
 };
 
 //进度条

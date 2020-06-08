@@ -51,5 +51,9 @@ void Connection::on_ConectBt_clicked()
     {
         QMessageBox::information(NULL, "提醒", "连接失败");
     }
+    else
+    {
+        this->hide();
+    }
 }
 

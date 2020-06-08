@@ -43,6 +43,7 @@ bool Xmodem::SendFile(QString FilePath)
     //等待板卡重启
     sleep(10);
     //重新连接Socket
+    MainWindow::flags = 1;//连接成功后，使用MainWindow::ReceiveData()过滤m_tcpClient中"Connect Success!\r\n"字符串数据
     m_tcpClient->connectToHost(Connection::ip,Connection::port);
     if(!m_tcpClient->waitForConnected(1000))
     {
