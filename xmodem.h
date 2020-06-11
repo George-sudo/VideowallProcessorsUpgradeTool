@@ -54,13 +54,18 @@ public:
     //计算CRC16
     quint16 crc16_ccitt(const char *buf, int len);
     bool SendFile(QString FilePath);
-    void GetChar(char *rxchar,int msWaitTime = 3000);
+    //c：0x00获取XMDM_CRC  c：0x01获取XMDM_ACK、XMDM_NCK、XMDM_CAN
+    void GetChar(char c, char *rxchar,int msWaitTime = 3000);
 
 signals:
-    void SendFileFinished(QString condition);
+    void SendFileFinished(QString condition,QString CardType, int Row, int Col);
+    void reconnection();
+    void SendDataPacket(QByteArray outBlock);
+    void PercentageProgress(QString value,QString CardType,int Row, int Col);
 
 public slots:
-     void StartSendFile(QString FilePath);
+     void StartSendFile(QString BinFilePath, QString CardType, int Row, int Col);
+     void ReceiveRespond(char respond);
 
 protected:
     void run();
@@ -84,7 +89,12 @@ private:
     };
 
     QTcpSocket *m_tcpClient;
-    QString m_FilePath;
+    QString m_BinFilePath;
+    //保存升级固件信息
+    QString m_CardType;
+    int m_Row;
+    int m_Col;
+    char m_rxchar;
 };
 
 #endif // XMODEM_H

@@ -1,7 +1,6 @@
 #include "mainwindow.h"
-#define ProgressBar 1
 
-int MainWindow::flags = 0;
+int MainWindow::flags = -1;
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
@@ -23,15 +22,12 @@ MainWindow::MainWindow(QWidget *parent) :
     GW_connection = new Connection(parent);
     xmodem = new Xmodem(Connection::tcpClient);
     connect(this,&MainWindow::FileSend,xmodem,&Xmodem::StartSendFile);
-    connect(this,&MainWindow::SendRespond,xmodem,&Xmodem::ReceiveRespond);
-    connect(Connection::tcpClient,&QTcpSocket::connected,this,&MainWindow::ScanCard);
+//    connect(Connection::tcpClient,&QTcpSocket::connected,this,&MainWindow::ScanCard);
     connect(Connection::tcpClient,&QTcpSocket::readyRead,this,&MainWindow::ReceiveData);
     timer = new QTimer(this);
     connect(MainWindow::timer, &QTimer::timeout, this, &MainWindow::ReceiveCardInfo);
     connect(xmodem,&Xmodem::SendFileFinished,this,&MainWindow::StartUpgrade);
     connect(xmodem,&Xmodem::reconnection,this,&MainWindow::reconnectionControlCard);
-    connect(xmodem,&Xmodem::SendDataPacket,this,&MainWindow::TcpSendDataPacket);
-    connect(xmodem,&Xmodem::PercentageProgress,this,&MainWindow::SetPercentageProgress);
     initMainWindow();
 }
 
@@ -153,7 +149,7 @@ void MainWindow::initMainWindow()
         }
     }
 
-#if ProgressBar
+#if 0
 //此部分为进度条部分，不能单独控制某条控制进度条，暂时先关闭
     ProgressBarDelegate* progressBar = new ProgressBarDelegate(ui->treeView);
     ui->treeView->setItemDelegateForColumn(2, progressBar);
@@ -171,7 +167,7 @@ void MainWindow::initMainWindow()
                                                "    border-radius:4px;"
                                                "}";
     qApp->setStyleSheet(ProgressBar_QssStr);
-//    GM_TreeViewModel->setData(GM_TreeViewModel->index(0,0).child(2,2),80);
+    GM_TreeViewModel->setData(GM_TreeViewModel->index(0,0).child(2,2),80);
 #endif
 
     //关联项目属性改变的信号和槽
@@ -499,7 +495,7 @@ Qt::CheckState MainWindow::checkSibling(QStandardItem * item)
     return Qt::Checked;
 }
 
-void MainWindow::on_SelectFileBt_clicked()
+void MainWindow::on_SlectFileBt_clicked()
 {
     //获取文件路径（包括文件名）
     QString ufwFilePath = QFileDialog::getOpenFileName(this, tr("选择文件"),tr("*.ufw"));
@@ -518,32 +514,6 @@ void MainWindow::on_SelectFileBt_clicked()
         m_BinFileDirPath = ufwDir;
         //保存.bin文件名
         GetBinFileNameList(m_BinFileDirPath,file_list);
-
-        //升级状态栏清空
-        for(uint i=0; i<GI_inputChild.size(); ++i)
-        {
-            GI_inputChild[i][2]->setText(" ");
-            GI_inputChild[i][4]->setText(" ");
-            GI_inputChild[i][6]->setText(" ");
-        }
-        for(uint i=0; i<GI_outputChild.size(); ++i)
-        {
-            GI_outputChild[i][2]->setText(" ");
-            GI_outputChild[i][4]->setText(" ");
-            GI_outputChild[i][6]->setText(" ");
-        }
-        for(uint i=0; i<GI_controlChild.size(); ++i)
-        {
-            GI_controlChild[i][2]->setText(" ");
-            GI_controlChild[i][4]->setText(" ");
-            GI_controlChild[i][6]->setText(" ");
-        }
-        for(uint i=0; i<GI_backboardtChild.size(); ++i)
-        {
-            GI_backboardtChild[i][2]->setText(" ");
-            GI_backboardtChild[i][4]->setText(" ");
-            GI_backboardtChild[i][6]->setText(" ");
-        }
     }
 }
 
@@ -555,8 +525,8 @@ void MainWindow::ScanCard()
     out.setVersion(QDataStream::Qt_5_6);
 
     m_outBlock.resize(0);
-    uchar ScanCardOrder[9] = {0x42, 0x4c, 0x13 ,0x89, 0x00, 0x01, 0x00, 0x08, 0xfe};
-    out.writeRawData((char*)ScanCardOrder,9);
+    char ScanCardOrder[9] = {0x42, 0x4c, 0x13 ,0x89, 0x00, 0x01, 0x00, 0x08, 0xfe};//0x42, 0x4c, 0x13 ,0x89, 0x00, 0x01, 0x00, 0x08, 0xfe
+    out.writeRawData(ScanCardOrder,9);
 //    for(int i=0; i<9; ++i)
 //    {
 //        qDebug("%#x",m_outBlock.at(i));
@@ -564,16 +534,8 @@ void MainWindow::ScanCard()
 //    }
 
     //发送扫描板卡命令
-    flags = -1;//为了不让MainWindow::ReceiveData处理板卡信息
     Connection::tcpClient->write(m_outBlock);
-    timer->start(1000);//等待若干秒，让控制卡把所有板卡信息返回来，再通过ReceiveCardInfo读取板卡信息
-
-    //显示控制卡信息（暂不支持升级）
-    GI_controlChild[0][0]->setText("卡槽1");
-    GI_controlChild[0][3]->setText("[空]");
-    GI_controlChild[0][4]->setText("暂不支持升级");
-    GI_controlChild[0][5]->setText("[空]");
-    GI_controlChild[0][6]->setText("暂不支持升级");
+    flags = 1;
 }
 
 /***升级固件***/
@@ -596,88 +558,12 @@ void MainWindow::on_upgradeBt_clicked()
         qDebug()<<a["single_board"].toObject()["TS-9436HM-PJ"].toObject()["FPGA1"].toObject()["md5"];
     }
 #endif
-
-#if 1
-    QMessageBox::StandardButton MessageBox;
-    MessageBox = QMessageBox::question(this, "升级提示",
-        "升级后将覆盖系统当前配置，是否继续执行?",
-        QMessageBox::Yes | QMessageBox::No);
-
-    if (MessageBox == QMessageBox::Yes)
-    {
-        //升级状态栏清空
-        for(uint i=0; i<GI_inputChild.size(); ++i)
-        {
-            GI_inputChild[i][2]->setText(" ");
-            GI_inputChild[i][4]->setText(" ");
-            GI_inputChild[i][6]->setText(" ");
-        }
-
-        //调试命令
-        QByteArray m_outBlock;
-        QDataStream out(&m_outBlock, QIODevice::WriteOnly);
-        out.setVersion(QDataStream::Qt_5_6);
-        m_outBlock.resize(0);
-        uchar UpgradeOrder[12] = {0x42, 0x4c, 0x13, 0x89, 0x00, 0x04, 0x00, 0x35, 0x01,0x01,0x01,0xfe};
-        out.writeRawData((char*)UpgradeOrder,12);
-        Connection::tcpClient->write(m_outBlock);
-#if 1
-        emit FileSend("E:/git/firmware/ts-9404ho-debug-fpga2_V1.1.bin","输入卡",0,1);
-#else
-        emit FileSend("E:/git/firmware/ts-9404ho-debug-mcu_V1.2.bin","输入卡",0,1);
-#endif
-    }
-
-#endif
     if(ui->textBrowser->toPlainText()=="文件格式为.ufw" || ui->textBrowser->toPlainText()=="")
     {
-
     }
     else{
-        QMessageBox::StandardButton MessageBox;
-        MessageBox = QMessageBox::question(this, "升级提示",
-            "升级后将覆盖系统当前配置，是否继续执行?",
-            QMessageBox::Yes | QMessageBox::No);
-
-        if (MessageBox == QMessageBox::Yes)
-        {
-            //升级状态栏清空
-            for(uint i=0; i<GI_inputChild.size(); ++i)
-            {
-                GI_inputChild[i][2]->setText(" ");
-                GI_inputChild[i][4]->setText(" ");
-                GI_inputChild[i][6]->setText(" ");
-            }
-            for(uint i=0; i<GI_outputChild.size(); ++i)
-            {
-                GI_outputChild[i][2]->setText(" ");
-                GI_outputChild[i][4]->setText(" ");
-                GI_outputChild[i][6]->setText(" ");
-            }
-            for(uint i=0; i<GI_controlChild.size(); ++i)
-            {
-                GI_controlChild[i][2]->setText(" ");
-                GI_controlChild[i][4]->setText(" ");
-                GI_controlChild[i][6]->setText(" ");
-            }
-            for(uint i=0; i<GI_backboardtChild.size(); ++i)
-            {
-                GI_backboardtChild[i][2]->setText(" ");
-                GI_backboardtChild[i][4]->setText(" ");
-                GI_backboardtChild[i][6]->setText(" ");
-            }
-            //重新赋值，
-            inrow = 0;
-            incol = 0;
-            outrow = 0;
-            outcol = 0;
-            conrow = 0;
-            concol = 0;
-            bacrow = 0;
-            baccol = 0;
-            //开始升级
-            StartUpgrade();
-        }
+        //开始升级
+        StartUpgrade();
     }
 }
 
@@ -685,120 +571,34 @@ void MainWindow::on_upgradeBt_clicked()
 void MainWindow::StartUpgrade(QString condition, QString CardType, int Row, int Col)
 {
     QString str;
+    QByteArray m_outBlock;
+    QDataStream out(&m_outBlock, QIODevice::WriteOnly);
+    out.setVersion(QDataStream::Qt_5_6);
 
     //显示升级结果
-    if(Row!=-1 && Col!=-1 )
+    if(Row!=-1 && Col!=-1)
     {
-        if(CardType == "输入卡" && Row<9 && Col<6)
+        if(CardType == "输入卡")
         {
-            if(condition.mid(0,4).contains("v",Qt::CaseInsensitive))
-            {
-                GI_inputChild[Row][Col]->setText(condition.mid(0,4));//版本号
-#if !ProgressBar
-                GI_inputChild[Row][Col+1]->setText(condition.mid(4,condition.size()-4));//升级完成
-                GI_inputChild[Row][Col+1]->setForeground(QBrush(QColor(0, 0, 255)));
-#endif
-            }
-            else
-            {
-
-#if !ProgressBar
-                GI_inputChild[Row][Col+1]->setText(condition);//升级失败
-                GI_inputChild[Row][Col+1]->setForeground(QBrush(QColor(255, 0, 0)));
-#endif
-            }
-
-            if(Col >= 5)
-            {
-                Col = 0;
-                Row += 1;
-            }
-            else
-                Col += 1;
+            GI_inputChild[Row][Col+1]->setText(condition);
             incol = Col;
             inrow = Row;
         }
-        if(CardType == "输出卡" && Row<9 && Col<6)
+        if(CardType == "输出卡")
         {
-            if(condition.mid(0,4).contains("v",Qt::CaseInsensitive))
-            {
-                GI_outputChild[Row][Col]->setText(condition.mid(0,4));//版本号
-#if !ProgressBar
-                GI_outputChild[Row][Col+1]->setText(condition.mid(4,condition.size()-4));//升级完成
-                GI_outputChild[Row][Col+1]->setForeground(QBrush(QColor(0, 0, 255)));
-#endif
-            }
-            else
-            {
-#if !ProgressBar
-                GI_outputChild[Row][Col+1]->setForeground(QBrush(QColor(255, 0, 0)));
-                GI_outputChild[Row][Col+1]->setText(condition);//升级失败
-#endif
-            }
-
-            if(Col >= 5)
-            {
-                Col = 0;
-                Row += 1;
-            }
-            else
-                Col += 1;
+            GI_outputChild[Row][Col+1]->setText(condition);
             outrow = Col;
             outcol = Row;
         }
-        if(CardType == "控制卡" && Row<1 && Col<6)
+        if(CardType == "控制卡")
         {
-            if(condition.mid(0,4).contains("v",Qt::CaseInsensitive))
-            {
-                GI_controlChild[Row][Col]->setText(condition.mid(0,4));//版本号
-#if !ProgressBar
-                GI_controlChild[Row][Col+1]->setText(condition.mid(4,condition.size()-4));//升级完成
-                GI_controlChild[Row][Col+1]->setForeground(QBrush(QColor(0, 0, 255)));
-#endif
-            }
-            else
-            {
-#if !ProgressBar
-                GI_controlChild[Row][Col+1]->setText(condition);//升级失败
-                GI_controlChild[Row][Col+1]->setForeground(QBrush(QColor(255, 0, 0)));
-#endif
-            }
-
-            if(Col >= 5)
-            {
-                Col = 0;
-                Row += 1;
-            }
-            else
-                Col += 1;
+            GI_controlChild[Row][Col+1]->setText(condition);
             conrow = Col;
             concol = Row;
         }
-        if(CardType == "背板" && Row<1 && Col<6)
+        if(CardType == "背板")
         {
-            if(condition.mid(0,4).contains("v",Qt::CaseInsensitive))
-            {
-                GI_backboardtChild[Row][Col]->setText(condition.mid(0,4));//版本号
-#if !ProgressBar
-                GI_backboardtChild[Row][Col+1]->setText(condition.mid(4,condition.size()-4));//升级完成
-                GI_backboardtChild[Row][Col+1]->setForeground(QBrush(QColor(0, 0, 255)));
-#endif
-            }
-            else
-            {
-#if !ProgressBar
-                GI_backboardtChild[Row][Col+1]->setText(condition);//升级失败
-                GI_backboardtChild[Row][Col+1]->setForeground(QBrush(QColor(255, 0, 0)));
-#endif
-            }
-
-            if(Col >= 5)
-            {
-                Col = 0;
-                Row += 1;
-            }
-            else
-                Col += 1;
+            GI_backboardtChild[Row][Col+1]->setText(condition);
             bacrow = Col;
             baccol = Row;
         }
@@ -811,12 +611,9 @@ void MainWindow::StartUpgrade(QString condition, QString CardType, int Row, int 
         {
            if(GI_inputChild[inrow][incol]->checkState() == Qt::Checked)
            {
-               QByteArray m_outBlock;
-               QDataStream out(&m_outBlock, QIODevice::WriteOnly);
-               out.setVersion(QDataStream::Qt_5_6);
                //升级固件
                m_outBlock.resize(0);
-               uchar UpgradeOrder[12] = {0x42, 0x4c, 0x13, 0x89, 0x00, 0x04, 0x00, 0x35, 0x00};
+               char UpgradeOrder[12] = {0x42, 0x4c, 0x13, 0x89, 0x00, 0x01, 0x00, 0x35, 0x00};
                //判断卡槽
                switch (inrow+1) {
                case 1:
@@ -870,7 +667,7 @@ void MainWindow::StartUpgrade(QString condition, QString CardType, int Row, int 
                    break;
                }
                UpgradeOrder[11] = 0xfe;
-               out.writeRawData((char*)UpgradeOrder,12);
+               out.writeRawData(UpgradeOrder,12);
                if(str != "not exist")
                {
                    //发送板卡升级命令
@@ -890,148 +687,162 @@ void MainWindow::StartUpgrade(QString condition, QString CardType, int Row, int 
         }
     }
 
-#if 1
-    //查找输出卡需要升级的固件
-    for(; outrow<GI_outputChild.size(); ++outrow)
-    {
-        for(; outcol<GI_outputChild[0].size(); ++outcol)
-        {
-           if(GI_outputChild[outrow][outcol]->checkState() == Qt::Checked)
-           {
-               QByteArray m_outBlock;
-               QDataStream out(&m_outBlock, QIODevice::WriteOnly);
-               out.setVersion(QDataStream::Qt_5_6);
-               //升级固件
-               m_outBlock.resize(0);
-               uchar UpgradeOrder[12] = {0x42, 0x4c, 0x13, 0x89, 0x00, 0x04, 0x00, 0x35, 0x01};
-               //判断卡槽
-               switch (outrow+1) {
-               case 1:
-                   UpgradeOrder[9] = 0x01;
-                   break;
-               case 2:
-                   UpgradeOrder[9] = 0x05;
-                   break;
-               case 3:
-                   UpgradeOrder[9] = 0x09;
-                   break;
-               case 4:
-                   UpgradeOrder[9] = 0x13;
-                   break;
-               case 5:
-                   UpgradeOrder[9] = 0x17;
-                   break;
-               case 6:
-                   UpgradeOrder[9] = 0x21;
-                   break;
-               case 7:
-                   UpgradeOrder[9] = 0x25;
-                   break;
-               case 8:
-                   UpgradeOrder[9] = 0x29;
-                   break;
-               case 9:
-                   UpgradeOrder[9] = 0x33;
-                   break;
-               default:
-                   break;
-               }
-               //判断固件升级类型
-               switch (outcol){
-               case 1://mcu
-                   UpgradeOrder[10] = 0x01;
-                   //查找升级的固件路径（带固件名）
-                   str = FindBinPath("ho","mcu");
-                   break;
-               case 3://fpga1
-                   UpgradeOrder[10] = 0x02;
-                   //查找升级的固件路径（带固件名）
-                   str = FindBinPath("ho","fpga1");
-                   break;
-               case 5://fpga2
-                   UpgradeOrder[10] = 0x03;
-                   //查找升级的固件路径（带固件名）
-                   str = FindBinPath("ho","fpga2");
-                   break;
-               default:
-                   break;
-               }
-               UpgradeOrder[11] = 0xfe;
-               out.writeRawData((char*)UpgradeOrder,12);
-               if(str != "not exist")
-               {
-                   //发送板卡升级命令
-                   Connection::tcpClient->write(m_outBlock);
-                   emit FileSend(str,"输出卡",outrow,outcol);
-                   GI_outputChild[outrow][outcol+1]->setText("正在升级...");
-                   return;
-               }
-               else
-                   qDebug()<<"没有此固件类型";
-           }
-           if(outcol == 6)
-           {
-               outcol = 0;
-               break;
-           }
-        }
-    }
+//    //查找输出卡需要升级的固件
+//    for(; outrow<GI_outputChild.size(); ++outrow)
+//    {
+//        for(; outcol<GI_outputChild[0].size(); ++outcol)
+//        {
+//           if(GI_outputChild[outrow][outcol]->checkState() == Qt::Checked)
+//           {
+//               //升级固件
+//               m_outBlock.resize(0);
+//               char UpgradeOrder[12] = {0x42, 0x4c, 0x13, 0x89, 0x00, 0x01, 0x00, 0x35, 0x00};
+//               //判断卡槽
+//               switch (outrow+1) {
+//               case 1:
+//                   UpgradeOrder[9] = 0x01;
+//                   break;
+//               case 2:
+//                   UpgradeOrder[9] = 0x05;
+//                   break;
+//               case 3:
+//                   UpgradeOrder[9] = 0x09;
+//                   break;
+//               case 4:
+//                   UpgradeOrder[9] = 0x13;
+//                   break;
+//               case 5:
+//                   UpgradeOrder[9] = 0x17;
+//                   break;
+//               case 6:
+//                   UpgradeOrder[9] = 0x21;
+//                   break;
+//               case 7:
+//                   UpgradeOrder[9] = 0x25;
+//                   break;
+//               case 8:
+//                   UpgradeOrder[9] = 0x29;
+//                   break;
+//               case 9:
+//                   UpgradeOrder[9] = 0x33;
+//                   break;
+//               default:
+//                   break;
+//               }
+//               //判断固件升级类型
+//               switch (outcol){
+//               case 1://mcu
+//                   UpgradeOrder[10] = 0x01;
+//                   //查找升级的固件路径（带固件名）
+//                   str = FindBinPath("ho","mcu");
+//                   break;
+//               case 3://fpga1
+//                   UpgradeOrder[10] = 0x02;
+//                   //查找升级的固件路径（带固件名）
+//                   str = FindBinPath("ho","fpga1");
+//                   break;
+//               case 5://fpga2
+//                   UpgradeOrder[10] = 0x03;
+//                   //查找升级的固件路径（带固件名）
+//                   str = FindBinPath("ho","fpga2");
+//                   break;
+//               default:
+//                   break;
+//               }
+//               UpgradeOrder[11] = 0xfe;
+//               out.writeRawData(UpgradeOrder,12);
+//               if(str != "not exist")
+//               {
+//                   //发送板卡升级命令
+//                   Connection::tcpClient->write(m_outBlock);
+//                   emit FileSend(str);
+//                   GI_outputChild[outrow][outcol]->setText("正在升级...");
 
-    //查找控制卡需要升级的固件
-    for(; conrow<GI_controlChild.size(); ++conrow)
-    {
-        for(; concol<GI_controlChild[0].size(); ++concol)
-        {
-           if(GI_controlChild[conrow][concol]->checkState() == Qt::Checked)
-           {
-               QByteArray m_outBlock;
-               QDataStream out(&m_outBlock, QIODevice::WriteOnly);
-               out.setVersion(QDataStream::Qt_5_6);
-               //升级固件
-               m_outBlock.resize(0);
-               uchar UpgradeOrder[12] = {0x42, 0x4c, 0x13, 0x89, 0x00, 0x04, 0x00, 0x35, 0x01, 0x00};
+//                   if(outcol == GI_outputChild[0].size()-1)
+//                   {
+//                       //标记是什么板卡升级，用于显示进度
+//                       CardTypeFlag = 3;//输出卡
+//                       ++outrow;
+//                   }
+//                   else{
+//                       //标记是什么板卡升级，用于显示进度
+//                       CardTypeFlag = 4;//输出卡
+//                       ++outcol;
+//                   }
+//                   return;
+//               }
+//               else
+//                   qDebug()<<"没有此固件类型";
+//           }
+//        }
+//    }
 
-               //判断固件升级类型
-               switch (concol){
-               case 1://mcu
-                   UpgradeOrder[10] = 0x01;
-                   //查找升级的固件路径（带固件名）
-                   str = FindBinPath("con","mcu");
-                   break;
-               case 3://fpga1
-                   UpgradeOrder[10] = 0x02;
-                   //查找升级的固件路径（带固件名）
-                   str = FindBinPath("con","fpga1");
-                   break;
-               case 5://fpga2
-                   UpgradeOrder[10] = 0x03;
-                   //查找升级的固件路径（带固件名）
-                   str = FindBinPath("con","fpga2");
-                   break;
-               default:
-                   break;
-               }
-               UpgradeOrder[11] = 0xfe;
-               out.writeRawData((char*)UpgradeOrder,12);
-               if(str != "not exist")
-               {
-                   //发送板卡升级命令
-                   Connection::tcpClient->write(m_outBlock);
-                   emit FileSend(str,"控制卡",conrow,concol);
-                   GI_controlChild[conrow][concol+1]->setText("正在升级...");
-                   return;
-               }
-               else
-                   qDebug()<<"没有此固件类型";
-           }
-           if(concol == 6)
-           {
-               concol = 0;
-               break;
-           }
-        }
-    }
-#endif
+//    //查找控制卡需要升级的固件
+//    for(; conrow<GI_controlChild.size(); ++conrow)
+//    {
+//        for(; concol<GI_controlChild[0].size(); ++concol)
+//        {
+//           if(GI_controlChild[conrow][concol]->checkState() == Qt::Checked)
+//           {
+//               //升级固件
+//               m_outBlock.resize(0);
+//               char UpgradeOrder[12] = {0x42, 0x4c, 0x13, 0x89, 0x00, 0x01, 0x00, 0x35, 0x00};
+//               //判断卡槽
+//               switch (conrow+1) {
+//               case 1:
+//                   UpgradeOrder[9] = 0x01;
+//                   break;
+//               default:
+//                   break;
+//               }
+//               //判断固件升级类型
+//               switch (concol){
+//               case 1://mcu
+//                   UpgradeOrder[10] = 0x01;
+//                   //查找升级的固件路径（带固件名）
+//                   str = FindBinPath("con","mcu");
+//                   break;
+//               case 3://fpga1
+//                   UpgradeOrder[10] = 0x02;
+//                   //查找升级的固件路径（带固件名）
+//                   str = FindBinPath("con","fpga1");
+//                   break;
+//               case 5://fpga2
+//                   UpgradeOrder[10] = 0x03;
+//                   //查找升级的固件路径（带固件名）
+//                   str = FindBinPath("con","fpga2");
+//                   break;
+//               default:
+//                   break;
+//               }
+//               UpgradeOrder[11] = 0xfe;
+//               out.writeRawData(UpgradeOrder,12);
+//               if(str != "not exist")
+//               {
+//                   //发送板卡升级命令
+//                   Connection::tcpClient->write(m_outBlock);
+//                   emit FileSend(str);
+//                   GI_controlChild[conrow][concol]->setText("正在升级...");
+
+//                   if(concol == GI_controlChild[0].size()-1)
+//                   {
+//                       //标记是什么板卡升级，用于显示进度
+//                       CardTypeFlag = 5;//控制卡
+//                       ++conrow;
+//                   }
+//                   else{
+//                       //标记是什么板卡升级，用于显示进度
+//                       CardTypeFlag = 6;//控制卡
+//                       ++concol;
+//                   }
+//                   return;
+//               }
+//               else
+//                   qDebug()<<"没有此固件类型";
+//           }
+//        }
+//    }
+
     //查找背卡需要升级的固件（暂时没有）
 
     //升级完成
@@ -1074,18 +885,14 @@ int MainWindow::GetBinFileNameList(QString BinFileDirPath, QStringList &file_lis
     return 0;
 }
 
-/***处理数据***/
+/***过滤掉"Connect Success!\r\n"字符串，然后发送扫描板卡信号***/
 void MainWindow::ReceiveData()
 {
-//    qDebug()<<"$$$$$$$$$$$$$";
-//    qDebug()<<flags;
-
-#if 0
     //连接成功后第一次返回"Connect Success!\r\n"字符串，读取数据后发送扫描板卡命令
-    if(flags == 0)
+    if(flags == -1)
     {
         QByteArray FirstData = Connection::tcpClient->readAll();
-        qDebug()<<"FirstData:"<<FirstData;
+        qDebug()<<"FirstData"<<FirstData;
         if(FirstData.toStdString()=="Connect Success!\r\n")
         {
             //显示控制卡信息（暂不支持升级）
@@ -1096,8 +903,8 @@ void MainWindow::ReceiveData()
             GI_controlChild[0][6]->setText("暂不支持升级");
             //扫描板卡
             ScanCard();
-            timer->start(1000);//等待控制卡把所有板卡信息返回来，再通过ReceiveCardInfo读取板卡信息
-            flags = -1;//过滤完成，设置标志位为-1
+            timer->start(1000);//等待控制卡把所有板卡信息返回来，再去读取板卡信息
+            flags = 0;//过滤完成，设置标志位为0
         }
     }
 
@@ -1107,21 +914,18 @@ void MainWindow::ReceiveData()
         QByteArray FirstLaterData = Connection::tcpClient->readAll();
         if(FirstLaterData.toStdString()=="Connect Success!\r\n")
         {
-            flags = -1;//过滤完成，设置标志位为-1
+            flags = 0;//过滤完成，设置标志位为0
         }
     }
-#endif
 
-    if(flags == 2)//接收回应
+    if(flags == 2)
     {
+        qDebug("重新连接：");
         QByteArray tem = Connection::tcpClient->readAll();
-        qDebug()<<"ReceiveDataSize:"<<tem.size();
         for(int i=0; i<tem.size();++i)
-            qDebug("ReceiveData[%d]:%#x",i,tem.at(i));
-        if(tem.size() == 1)
-            emit SendRespond(tem.at(0));
-        else
-            emit SendRespond(tem.at(tem.size()-1));
+        {
+            qDebug("%#x",tem.at(i));
+        }
     }
 }
 
@@ -1141,103 +945,13 @@ void MainWindow::ReceiveCardInfo()
 /***重新连接控制卡***/
 void MainWindow::reconnectionControlCard()
 {
-    Connection::tcpClient->disconnectFromHost();
-    Connection::tcpClient->close();
     Connection::tcpClient->connectToHost(Connection::ip,Connection::port);
-
-    if(!Connection::tcpClient->waitForConnected(1000))
+    if(!m_tcpClient->waitForConnected(1000))
     {
         QMessageBox::information(NULL, "提醒", "连接失败");
     }
     else
-    {
         QMessageBox::information(NULL, "提醒", "连接成功");
-    }
-}
-
-void MainWindow::TcpSendDataPacket(QByteArray outBlock)
-{
-    Connection::tcpClient->write(outBlock);
-}
-
-void MainWindow::SetPercentageProgress(QString value, QString CardType, int Row, int Col)
-{
-#if ProgressBar
-    //进度条显示
-    if(CardType == "输入卡")
-    {
-        if(value == "100")
-        {
-            GM_TreeViewModel->setData(GM_TreeViewModel->index(0,0).child(Row,Col+1),value.toInt());
-        }
-        else
-        {
-            GM_TreeViewModel->setData(GM_TreeViewModel->index(0,0).child(Row,Col+1),value.mid(0,value.indexOf('.')).toInt());
-        }
-    }
-    if(CardType == "输出卡")
-    {
-        if(value == "100")
-        {
-            GM_TreeViewModel->setData(GM_TreeViewModel->index(1,0).child(Row,Col+1),value.toInt());
-        }
-        else
-        {
-            GM_TreeViewModel->setData(GM_TreeViewModel->index(1,0).child(Row,Col+1),value.mid(0,value.indexOf('.')).toInt());
-        }
-    }
-    if(CardType == "控制卡")
-    {
-        if(value == "100")
-        {
-           GM_TreeViewModel->setData(GM_TreeViewModel->index(2,0).child(Row,Col+1),value.toInt());
-        }
-        else
-        {
-            GM_TreeViewModel->setData(GM_TreeViewModel->index(2,0).child(Row,Col+1),value.mid(0,value.indexOf('.')).toInt());
-        }
-    }
-    //背板暂时没有
-#else
-    //文字和数字显示进度
-    if(CardType == "输入卡")
-    {
-        if(value == "100")
-        {
-            GI_inputChild[Row][Col+1]->setText("升级完成");
-        }
-        else
-        {
-            GI_inputChild[Row][Col+1]->setText("正在升级...\n"+value.mid(0,value.indexOf('.'))+"%");
-            GI_inputChild[Row][Col+1]->setForeground(QBrush(QColor(0, 255, 0)));
-        }
-    }
-    if(CardType == "输出卡")
-    {
-        if(value == "100")
-        {
-            GI_outputChild[Row][Col+1]->setText("升级完成");
-        }
-        else
-        {
-            GI_outputChild[Row][Col+1]->setText("正在升级...\n"+value.mid(0,value.indexOf('.'))+"%");
-            GI_outputChild[Row][Col+1]->setForeground(QBrush(QColor(0, 255, 0)));
-        }
-    }
-    if(CardType == "控制卡")
-    {
-        if(value == "100")
-        {
-            GI_controlChild[Row][Col+1]->setText("升级完成");
-        }
-        else
-        {
-            GI_controlChild[Row][Col+1]->setText("正在升级...\n"+value.mid(0,value.indexOf('.'))+"%");
-            GI_controlChild[Row][Col+1]->setForeground(QBrush(QColor(0, 255, 0)));
-        }
-    }
-    //背板暂时没有
-#endif
 }
 
 /***设置界面板卡信息***/

@@ -53,18 +53,22 @@ public:
     void SetCardInfoToItem(QByteArray &CardInfo);
     int GetBinFileNameList(QString BinFileDirPath, QStringList &file_list);
     QString FindBinPath(QString CardType, QString  FirmwareTpye);
-    void StartUpgrade(QString condition="");
+    void StartUpgrade(QString condition="",QString CardType="", int Row=-1, int Col=-1);
     void ScanCard();
 
 signals:
-    void FileSend(QString BinFilePath);
+    void FileSend(QString BinFilePath, QString CardType, int Row, int Col);
+    void SendRespond(char respond);
 
 private slots :
     void treeItemChanged( QStandardItem * item );
-    void on_SlectFileBt_clicked();
+    void on_SelectFileBt_clicked();
     void on_upgradeBt_clicked();
     void ReceiveData();
     void ReceiveCardInfo();
+    void reconnectionControlCard();
+    void TcpSendDataPacket(QByteArray outBlock);
+    void SetPercentageProgress(QString value,QString CardType,int Row, int Col);
 
 public:
     QString m_BinFileDirPath;

@@ -55,7 +55,7 @@
          </widget>
         </item>
         <item>
-         <widget class="QPushButton" name="SlectFileBt">
+         <widget class="QPushButton" name="SelectFileBt">
           <property name="text">
            <string>选择文件</string>
           </property>
