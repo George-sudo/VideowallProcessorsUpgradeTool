@@ -1,5 +1,5 @@
 #include "mainwindow.h"
-#define ProgressBar 1
+#define ProgressBar 0
 
 int MainWindow::flags = 0;
 
@@ -621,10 +621,10 @@ void MainWindow::on_upgradeBt_clicked()
         uchar UpgradeOrder[12] = {0x42, 0x4c, 0x13, 0x89, 0x00, 0x04, 0x00, 0x35, 0x01,0x01,0x01,0xfe};
         out.writeRawData((char*)UpgradeOrder,12);
         Connection::tcpClient->write(m_outBlock);
-#if 1
-        emit FileSend("E:/git/firmware/ts-9404ho-debug-fpga2_V1.1.bin","输入卡",0,1);
+#if 0
+        emit FileSend("E:/git/firmware/456.pdf","输入卡",0,1);
 #else
-        emit FileSend("E:/git/firmware/ts-9404ho-debug-mcu_V1.2.bin","输入卡",0,1);
+        emit FileSend("E:/git/firmware/tv-9411ho-mcu-v1.0.hex","控制卡",0,1);
 #endif
     }
 
@@ -1209,7 +1209,7 @@ void MainWindow::SetPercentageProgress(QString value, QString CardType, int Row,
         else
         {
             GI_inputChild[Row][Col+1]->setText("正在升级...\n"+value.mid(0,value.indexOf('.'))+"%");
-            GI_inputChild[Row][Col+1]->setForeground(QBrush(QColor(0, 255, 0)));
+            GI_inputChild[Row][Col+1]->setForeground(QBrush(QColor(0, 220, 0)));
         }
     }
     if(CardType == "输出卡")
@@ -1221,7 +1221,7 @@ void MainWindow::SetPercentageProgress(QString value, QString CardType, int Row,
         else
         {
             GI_outputChild[Row][Col+1]->setText("正在升级...\n"+value.mid(0,value.indexOf('.'))+"%");
-            GI_outputChild[Row][Col+1]->setForeground(QBrush(QColor(0, 255, 0)));
+            GI_outputChild[Row][Col+1]->setForeground(QBrush(QColor(0, 220, 0)));
         }
     }
     if(CardType == "控制卡")
@@ -1233,7 +1233,7 @@ void MainWindow::SetPercentageProgress(QString value, QString CardType, int Row,
         else
         {
             GI_controlChild[Row][Col+1]->setText("正在升级...\n"+value.mid(0,value.indexOf('.'))+"%");
-            GI_controlChild[Row][Col+1]->setForeground(QBrush(QColor(0, 255, 0)));
+            GI_controlChild[Row][Col+1]->setForeground(QBrush(QColor(0, 220, 0)));
         }
     }
     //背板暂时没有

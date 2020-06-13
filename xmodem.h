@@ -53,7 +53,7 @@ public:
     Xmodem(QTcpSocket *tcpClient);
     //计算CRC16
     quint16 crc16_ccitt(const char *buf, int len);
-    bool SendFile(QString FilePath);
+    bool SendFile(QString FilePath, QString CardType);
     //c：0x00获取XMDM_CRC  c：0x01获取XMDM_ACK、XMDM_NCK、XMDM_CAN
     void GetChar(char c, char *rxchar,int msWaitTime = 3000);
 

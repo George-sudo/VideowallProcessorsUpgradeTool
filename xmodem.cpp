@@ -14,7 +14,7 @@ quint16 Xmodem::crc16_ccitt(const char *buf, int len)
     return crc;
 }
 
-bool Xmodem::SendFile(QString FilePath)
+bool Xmodem::SendFile(QString FilePath, QString CardType)
 {
     char rxChar = 0;
     char PacketBuf[PKTSIZE] = {0};
@@ -35,19 +35,13 @@ bool Xmodem::SendFile(QString FilePath)
         return false;
     }
     FlieSize = file.size();
-#if 0
-//    //等待板卡重启
-    sleep(10);
-    //发送信号给MainWindow对象重新连接控制卡
-    emit reconnection();
-
-    //重新连接Socket
-    Connection::tcpClient->disconnectFromHost();
-    MainWindow::flags = 1;//连接成功后，使用MainWindow::ReceiveData()过滤m_tcpClient中"Connect Success!\r\n"字符串数据
-    m_tcpClient->connectToHost(Connection::ip,Connection::port);
-    if(!m_tcpClient->waitForConnected(1000))
+#if 1
+    //如果是控制卡升级，则等待板卡重启后，重连再发送
+    if("控制卡" == CardType)
     {
-        QMessageBox::information(NULL, "提醒", "连接失败");
+        sleep(10);
+        //发送信号给MainWindow对象重新连接控制卡
+        emit reconnection();
     }
 #endif
     MainWindow::flags = 2;
@@ -175,6 +169,7 @@ NextStep:
             bytesSent += DataReadSize;
             //发送升级进度
             emit PercentageProgress(QString("%1").arg(bytesSent/(FlieSize*1.0)*100),m_CardType,m_Row,m_Col);
+
             if(bytesSent >= FlieSize)
             {
                 goto NextStep;
@@ -251,7 +246,7 @@ void Xmodem::StartSendFile(QString BinFilePath, QString CardType, int Row, int C
 
 void Xmodem::run()
 {
-    if(SendFile(m_BinFilePath))
+    if(SendFile(m_BinFilePath, m_CardType))
     {
         qDebug()<<"升级成功";
         QString version = m_BinFilePath.mid(m_BinFilePath.size()-8,4);
@@ -260,6 +255,7 @@ void Xmodem::run()
     else
     {
         qDebug()<<"升级失败";
+        msleep(100);
         emit reconnection();//发起重新连接socket信号
         emit SendFileFinished("升级失败",m_CardType,m_Row,m_Col);
     }
