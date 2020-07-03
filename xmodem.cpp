@@ -18,6 +18,11 @@ bool Xmodem::SendFile(QString FilePath, QString CardType)
 {
     char rxChar = 0;
     char PacketBuf[PKTSIZE] = {0};
+    uchar CompanyCheckCode[2] = {0x42, 0x4c};
+    uchar ProjectCode[2] = {0x13, 0x89};
+    uchar ExtensionHeadLen = 0x00;
+    uchar code = 0x5c;
+    uchar end = 0xfe;
     const char xmdm_stx = XMDM_STX;
     uchar seq = 1;
     char useq = ~seq;
@@ -28,7 +33,9 @@ bool Xmodem::SendFile(QString FilePath, QString CardType)
     quint32 bytesSent = 0;
     quint64 FlieSize;
     quint64 DataReadSize;
-
+    quint16 SendSize = PKTSIZE+6;
+    uchar SendSizeH = SendSize>>8;
+    uchar SendSizeL = SendSize&0x00ff;
     if(!file.open(QFile::ReadOnly))
     {
         qDebug()<<"Error!文件打开失败！";
@@ -100,12 +107,19 @@ bool Xmodem::SendFile(QString FilePath, QString CardType)
             crcH = crc>>8;
             crcL = crc&0x00ff;
             useq = ~seq;
+            out.writeRawData((char *)CompanyCheckCode,2);
+            out.writeRawData((char *)ProjectCode,2);
+            out.writeRawData((char *)&SendSizeH,1);
+            out.writeRawData((char *)&SendSizeL,1);
+            out.writeRawData((char *)&ExtensionHeadLen,1);
+            out.writeRawData((char *)&code,1);
             out.writeRawData(&xmdm_stx,1);
             out.writeRawData((char *)&seq,1);
             out.writeRawData(&useq,1);
             out.writeRawData(PacketBuf,PKTSIZE);
             out.writeRawData(&crcH,1);
             out.writeRawData(&crcL,1);
+            out.writeRawData((char *)&end,1);
 
         }else if(DataReadSize < PKTSIZE){
             for(quint64 i=PKTSIZE-1; i>=DataReadSize; --i)
@@ -116,12 +130,19 @@ bool Xmodem::SendFile(QString FilePath, QString CardType)
             crcH = crc>>8;
             crcL = crc&0x00ff;
             useq = ~seq;
+            out.writeRawData((char *)CompanyCheckCode,2);
+            out.writeRawData((char *)ProjectCode,2);
+            out.writeRawData((char *)&SendSizeH,1);
+            out.writeRawData((char *)&SendSizeL,1);
+            out.writeRawData((char *)&ExtensionHeadLen,1);
+            out.writeRawData((char *)&code,1);
             out.writeRawData(&xmdm_stx,1);
             out.writeRawData((char *)&seq,1);
             out.writeRawData(&useq,1);
             out.writeRawData(PacketBuf,PKTSIZE);
             out.writeRawData(&crcH,1);
             out.writeRawData(&crcL,1);
+            out.writeRawData((char *)&end,1);
         }
 
 #if 1

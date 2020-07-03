@@ -621,17 +621,17 @@ void MainWindow::on_upgradeBt_clicked()
         uchar UpgradeOrder[12] = {0x42, 0x4c, 0x13, 0x89, 0x00, 0x04, 0x00, 0x35, 0x01,0x01,0x01,0xfe};
         out.writeRawData((char*)UpgradeOrder,12);
         Connection::tcpClient->write(m_outBlock);
-#if 0
+#if 1
         emit FileSend("E:/git/firmware/456.pdf","输入卡",0,1);
 #else
-        emit FileSend("E:/git/firmware/tv-9411ho-mcu-v1.0.hex","控制卡",0,1);
+        emit FileSend("E:/git/firmware/tv-9411ho-mcu-v1.0.hex","输入卡",0,1);
 #endif
     }
 
 #endif
     if(ui->textBrowser->toPlainText()=="文件格式为.ufw" || ui->textBrowser->toPlainText()=="")
     {
-
+        QMessageBox::information(NULL,"提醒","请选择升级需要的正确固件!");
     }
     else{
         QMessageBox::StandardButton MessageBox;
