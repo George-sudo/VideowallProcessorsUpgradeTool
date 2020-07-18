@@ -141,6 +141,12 @@ void MainWindow::initMainWindow()
             GI_inputChild[i][j]->setCheckable(false);
             GI_outputChild[i][j]->setCheckable(false);
         }
+        
+        for(int k=0; k<7; ++k)
+        {
+            GI_inputChild[i][k]->setEnabled(false);
+            GI_outputChild[i][k]->setEnabled(false);
+        }
     }
     for(int i=0; i<m_ControlBackCardCount; ++i)
     {
@@ -150,6 +156,12 @@ void MainWindow::initMainWindow()
         {
             GI_controlChild[i][j]->setCheckable(false);
             GI_backboardtChild[i][j]->setCheckable(false);
+        }
+
+        for(int k=0; k<7; ++k)
+        {
+            GI_controlChild[i][k]->setEnabled(false);
+            GI_backboardtChild[i][k]->setEnabled(false);
         }
     }
 
@@ -566,38 +578,22 @@ void MainWindow::ScanCard()
     //发送扫描板卡命令
     flags = -1;//为了不让MainWindow::ReceiveData处理板卡信息
     Connection::tcpClient->write(m_outBlock);
-    timer->start(1000);//等待若干秒，让控制卡把所有板卡信息返回来，再通过ReceiveCardInfo读取板卡信息
+    timer->start(5000);//等待若干秒，让控制卡把所有板卡信息返回来，再通过ReceiveCardInfo读取板卡信息
 
-    //显示控制卡信息（暂不支持升级）
+    //显示控制卡信息
+    GI_controlChild[0][0]->setEnabled(true);
+    GI_controlChild[0][1]->setEnabled(true);
+    GI_controlChild[0][2]->setEnabled(true);
+    GI_controlChild[0][1]->setCheckable(true);
     GI_controlChild[0][0]->setText("卡槽1");
     GI_controlChild[0][3]->setText("[空]");
-    GI_controlChild[0][4]->setText("暂不支持升级");
     GI_controlChild[0][5]->setText("[空]");
-    GI_controlChild[0][6]->setText("暂不支持升级");
 }
 
 /***升级固件***/
 void MainWindow::on_upgradeBt_clicked()
 {
 #if 0
-    //读取Json数据
-    QFile file("E:/git/update/ts-94xx_update_firmware/_metadata/packing.json");
-    file.open(QIODevice::ReadOnly | QIODevice::Text);
-    QString value = file.readAll();
-    file.close();
-    QJsonParseError parseJsonErr;
-    QJsonDocument document = QJsonDocument::fromJson(value.toUtf8(),&parseJsonErr);
-    QJsonObject jsonObject = document.object();
-
-    if(jsonObject.contains(QStringLiteral("update_firmware")))
-    {
-        QJsonValue Value = jsonObject.value(QStringLiteral("update_firmware"));
-        QJsonObject a = Value.toObject();
-        qDebug()<<a["single_board"].toObject()["TS-9436HM-PJ"].toObject()["FPGA1"].toObject()["md5"];
-    }
-#endif
-
-#if 1
     QMessageBox::StandardButton MessageBox;
     MessageBox = QMessageBox::question(this, "升级提示",
         "升级后将覆盖系统当前配置，是否继续执行?",
@@ -633,7 +629,8 @@ void MainWindow::on_upgradeBt_clicked()
     {
         QMessageBox::information(NULL,"提醒","请选择升级需要的正确固件!");
     }
-    else{
+    else
+    {
         QMessageBox::StandardButton MessageBox;
         MessageBox = QMessageBox::question(this, "升级提示",
             "升级后将覆盖系统当前配置，是否继续执行?",
@@ -743,8 +740,8 @@ void MainWindow::StartUpgrade(QString condition, QString CardType, int Row, int 
             }
             else
                 Col += 1;
-            outrow = Col;
-            outcol = Row;
+            outcol = Col;
+            outrow = Row;
         }
         if(CardType == "控制卡" && Row<1 && Col<6)
         {
@@ -898,6 +895,7 @@ void MainWindow::StartUpgrade(QString condition, QString CardType, int Row, int 
         {
            if(GI_outputChild[outrow][outcol]->checkState() == Qt::Checked)
            {
+
                QByteArray m_outBlock;
                QDataStream out(&m_outBlock, QIODevice::WriteOnly);
                out.setVersion(QDataStream::Qt_5_6);
@@ -1118,10 +1116,7 @@ void MainWindow::ReceiveData()
         qDebug()<<"ReceiveDataSize:"<<tem.size();
         for(int i=0; i<tem.size();++i)
             qDebug("ReceiveData[%d]:%#x",i,tem.at(i));
-        if(tem.size() == 1)
-            emit SendRespond(tem.at(0));
-        else
-            emit SendRespond(tem.at(tem.size()-1));
+        emit SendRespond(tem.at(0));
     }
 }
 
@@ -1131,6 +1126,7 @@ void MainWindow::ReceiveCardInfo()
     timer->stop();//停止定时器
     m_CardInfo.resize(0);
     m_CardInfo = Connection::tcpClient->readAll();
+    qDebug()<<m_CardInfo.size();
 //    for(int i = 0; i<m_CardInfo.size(); ++i)
 //    {
 //        qDebug("%#x",m_CardInfo.at(i));
@@ -1246,9 +1242,9 @@ void MainWindow::SetCardInfoToItem(QByteArray &CardInfo)
     QByteArray ary;
     for(int i=0; i<CardInfo.size()/12; ++i)
     {
-//        qDebug()<<"oneCardData";
         ary.resize(0);
         ary = CardInfo.mid(i*12,12);
+
 //        for(int j = 0; j<ary.size(); ++j)
 //        {
 //            qDebug("%#x",ary.at(j));
@@ -1256,9 +1252,14 @@ void MainWindow::SetCardInfoToItem(QByteArray &CardInfo)
 
         //背板卡（暂时没有）
 
+        qDebug("ary.at(0):%#x ary.at(1):%#x",ary.at(0),ary.at(1));
         //控制板卡
         if(ary.at(1) == 0)
         {
+            for(int k=0; k<7; ++k)
+            {
+                GI_controlChild[0][k]->setEnabled(true);
+            }
             GI_controlChild[0][0]->setText("卡槽1");
             GI_controlChild[0][1]->setCheckable(true);
             GI_controlChild[0][3]->setCheckable(true);
@@ -1273,6 +1274,10 @@ void MainWindow::SetCardInfoToItem(QByteArray &CardInfo)
         {
             switch (ary.at(1)) {
             case 1://卡槽1
+                for(int k=0; k<7; ++k)
+                {
+                    GI_inputChild[0][k]->setEnabled(true);
+                }
                 GI_inputChild[0][0]->setText("卡槽1");
                 GI_inputChild[0][1]->setCheckable(true);
                 GI_inputChild[0][3]->setCheckable(true);
@@ -1283,6 +1288,10 @@ void MainWindow::SetCardInfoToItem(QByteArray &CardInfo)
                 GI_inputChild[0][5]->setText(QString("V%1.%2").arg(ary.at(11)>>4).arg(ary.at(11)&0x0f));
                 break;
             case 5://卡槽2
+                for(int k=0; k<7; ++k)
+                {
+                    GI_inputChild[1][k]->setEnabled(true);
+                }
                 GI_inputChild[1][0]->setText("卡槽2");
                 GI_inputChild[1][1]->setCheckable(true);
                 GI_inputChild[1][3]->setCheckable(true);
@@ -1293,6 +1302,10 @@ void MainWindow::SetCardInfoToItem(QByteArray &CardInfo)
                 GI_inputChild[1][5]->setText(QString("V%1.%2").arg(ary.at(11)>>4).arg(ary.at(11)&0x0f));
                 break;
             case 9://卡槽3
+                for(int k=0; k<7; ++k)
+                {
+                    GI_inputChild[2][k]->setEnabled(true);
+                }
                 GI_inputChild[2][0]->setText("卡槽3");
                 GI_inputChild[2][1]->setCheckable(true);
                 GI_inputChild[2][3]->setCheckable(true);
@@ -1303,6 +1316,10 @@ void MainWindow::SetCardInfoToItem(QByteArray &CardInfo)
                 GI_inputChild[2][5]->setText(QString("V%1.%2").arg(ary.at(11)>>4).arg(ary.at(11)&0x0f));
                 break;
             case 13://卡槽4
+                for(int k=0; k<7; ++k)
+                {
+                    GI_inputChild[3][k]->setEnabled(true);
+                }
                 GI_inputChild[3][0]->setText("卡槽4");
                 GI_inputChild[3][1]->setCheckable(true);
                 GI_inputChild[3][3]->setCheckable(true);
@@ -1313,6 +1330,10 @@ void MainWindow::SetCardInfoToItem(QByteArray &CardInfo)
                 GI_inputChild[3][5]->setText(QString("V%1.%2").arg(ary.at(11)>>4).arg(ary.at(11)&0x0f));
                 break;
             case 17://卡槽5
+                for(int k=0; k<7; ++k)
+                {
+                    GI_inputChild[4][k]->setEnabled(true);
+                }
                 GI_inputChild[4][0]->setText("卡槽5");
                 GI_inputChild[4][1]->setCheckable(true);
                 GI_inputChild[4][3]->setCheckable(true);
@@ -1323,6 +1344,10 @@ void MainWindow::SetCardInfoToItem(QByteArray &CardInfo)
                 GI_inputChild[4][5]->setText(QString("V%1.%2").arg(ary.at(11)>>4).arg(ary.at(11)&0x0f));
                 break;
             case 21://卡槽6
+                for(int k=0; k<7; ++k)
+                {
+                    GI_inputChild[5][k]->setEnabled(true);
+                }
                 GI_inputChild[5][0]->setText("卡槽6");
                 GI_inputChild[5][1]->setCheckable(true);
                 GI_inputChild[5][3]->setCheckable(true);
@@ -1333,6 +1358,10 @@ void MainWindow::SetCardInfoToItem(QByteArray &CardInfo)
                 GI_inputChild[5][5]->setText(QString("V%1.%2").arg(ary.at(11)>>4).arg(ary.at(11)&0x0f));
                 break;
             case 25://卡槽7
+                for(int k=0; k<7; ++k)
+                {
+                    GI_inputChild[6][k]->setEnabled(true);
+                }
                 GI_inputChild[6][0]->setText("卡槽7");
                 GI_inputChild[6][1]->setCheckable(true);
                 GI_inputChild[6][3]->setCheckable(true);
@@ -1343,6 +1372,10 @@ void MainWindow::SetCardInfoToItem(QByteArray &CardInfo)
                 GI_inputChild[6][5]->setText(QString("V%1.%2").arg(ary.at(11)>>4).arg(ary.at(11)&0x0f));
                 break;
             case 29://卡槽8
+                for(int k=0; k<7; ++k)
+                {
+                    GI_inputChild[7][k]->setEnabled(true);
+                }
                 GI_inputChild[7][0]->setText("卡槽8");
                 GI_inputChild[7][1]->setCheckable(true);
                 GI_inputChild[7][3]->setCheckable(true);
@@ -1353,6 +1386,10 @@ void MainWindow::SetCardInfoToItem(QByteArray &CardInfo)
                 GI_inputChild[7][5]->setText(QString("V%1.%2").arg(ary.at(11)>>4).arg(ary.at(11)&0x0f));
                 break;
             case 33://卡槽9
+                for(int k=0; k<7; ++k)
+                {
+                    GI_inputChild[8][k]->setEnabled(true);
+                }
                 GI_inputChild[8][0]->setText("卡槽9");
                 GI_inputChild[8][1]->setCheckable(true);
                 GI_inputChild[8][3]->setCheckable(true);
@@ -1370,7 +1407,11 @@ void MainWindow::SetCardInfoToItem(QByteArray &CardInfo)
         if(ary.at(0) == 0x01)
         {
             switch (ary.at(1)) {
-            case 0x01://卡槽1
+            case 1://卡槽1
+                for(int k=0; k<7; ++k)
+                {
+                    GI_outputChild[0][k]->setEnabled(true);
+                }
                 GI_outputChild[0][0]->setText("卡槽1");
                 GI_outputChild[0][1]->setCheckable(true);
                 GI_outputChild[0][3]->setCheckable(true);
@@ -1380,7 +1421,11 @@ void MainWindow::SetCardInfoToItem(QByteArray &CardInfo)
                 GI_outputChild[0][3]->setText(QString("V%1.%2").arg(ary.at(10)>>4).arg(ary.at(10)&0x0f));
                 GI_outputChild[0][5]->setText(QString("V%1.%2").arg(ary.at(11)>>4).arg(ary.at(11)&0x0f));
                 break;
-            case 0x05://卡槽2
+            case 5://卡槽2
+                for(int k=0; k<7; ++k)
+                {
+                    GI_outputChild[1][k]->setEnabled(true);
+                }
                 GI_outputChild[1][0]->setText("卡槽2");
                 GI_outputChild[1][1]->setCheckable(true);
                 GI_outputChild[1][3]->setCheckable(true);
@@ -1390,7 +1435,11 @@ void MainWindow::SetCardInfoToItem(QByteArray &CardInfo)
                 GI_outputChild[1][3]->setText(QString("V%1.%2").arg(ary.at(10)>>4).arg(ary.at(10)&0x0f));
                 GI_outputChild[1][5]->setText(QString("V%1.%2").arg(ary.at(11)>>4).arg(ary.at(11)&0x0f));
                 break;
-            case 0x09://卡槽3
+            case 9://卡槽3
+                for(int k=0; k<7; ++k)
+                {
+                    GI_outputChild[2][k]->setEnabled(true);
+                }
                 GI_outputChild[2][0]->setText("卡槽3");
                 GI_outputChild[2][1]->setCheckable(true);
                 GI_outputChild[2][3]->setCheckable(true);
@@ -1400,7 +1449,11 @@ void MainWindow::SetCardInfoToItem(QByteArray &CardInfo)
                 GI_outputChild[2][3]->setText(QString("V%1.%2").arg(ary.at(10)>>4).arg(ary.at(10)&0x0f));
                 GI_outputChild[2][5]->setText(QString("V%1.%2").arg(ary.at(11)>>4).arg(ary.at(11)&0x0f));
                 break;
-            case 0x13://卡槽4
+            case 13://卡槽4
+                for(int k=0; k<7; ++k)
+                {
+                    GI_outputChild[3][k]->setEnabled(true);
+                }
                 GI_outputChild[3][0]->setText("卡槽4");
                 GI_outputChild[3][1]->setCheckable(true);
                 GI_outputChild[3][3]->setCheckable(true);
@@ -1410,7 +1463,11 @@ void MainWindow::SetCardInfoToItem(QByteArray &CardInfo)
                 GI_outputChild[3][3]->setText(QString("V%1.%2").arg(ary.at(10)>>4).arg(ary.at(10)&0x0f));
                 GI_outputChild[3][5]->setText(QString("V%1.%2").arg(ary.at(11)>>4).arg(ary.at(11)&0x0f));
                 break;
-            case 0x17://卡槽5
+            case 17://卡槽5
+                for(int k=0; k<7; ++k)
+                {
+                    GI_outputChild[4][k]->setEnabled(true);
+                }
                 GI_outputChild[4][0]->setText("卡槽5");
                 GI_outputChild[4][1]->setCheckable(true);
                 GI_outputChild[4][3]->setCheckable(true);
@@ -1420,7 +1477,11 @@ void MainWindow::SetCardInfoToItem(QByteArray &CardInfo)
                 GI_outputChild[4][3]->setText(QString("V%1.%2").arg(ary.at(10)>>4).arg(ary.at(10)&0x0f));
                 GI_outputChild[4][5]->setText(QString("V%1.%2").arg(ary.at(11)>>4).arg(ary.at(11)&0x0f));
                 break;
-            case 0x21://卡槽6
+            case 21://卡槽6
+                for(int k=0; k<7; ++k)
+                {
+                    GI_outputChild[5][k]->setEnabled(true);
+                }
                 GI_outputChild[5][0]->setText("卡槽6");
                 GI_outputChild[5][1]->setCheckable(true);
                 GI_outputChild[5][3]->setCheckable(true);
@@ -1430,7 +1491,11 @@ void MainWindow::SetCardInfoToItem(QByteArray &CardInfo)
                 GI_outputChild[5][3]->setText(QString("V%1.%2").arg(ary.at(10)>>4).arg(ary.at(10)&0x0f));
                 GI_outputChild[5][5]->setText(QString("V%1.%2").arg(ary.at(11)>>4).arg(ary.at(11)&0x0f));
                 break;
-            case 0x25://卡槽7
+            case 25://卡槽7
+                for(int k=0; k<7; ++k)
+                {
+                    GI_outputChild[6][k]->setEnabled(true);
+                }
                 GI_outputChild[6][0]->setText("卡槽7");
                 GI_outputChild[6][1]->setCheckable(true);
                 GI_outputChild[6][3]->setCheckable(true);
@@ -1440,7 +1505,11 @@ void MainWindow::SetCardInfoToItem(QByteArray &CardInfo)
                 GI_outputChild[6][3]->setText(QString("V%1.%2").arg(ary.at(10)>>4).arg(ary.at(10)&0x0f));
                 GI_outputChild[6][5]->setText(QString("V%1.%2").arg(ary.at(11)>>4).arg(ary.at(11)&0x0f));
                 break;
-            case 0x29://卡槽8
+            case 29://卡槽8
+                for(int k=0; k<7; ++k)
+                {
+                    GI_outputChild[7][k]->setEnabled(true);
+                }
                 GI_outputChild[7][0]->setText("卡槽8");
                 GI_outputChild[7][1]->setCheckable(true);
                 GI_outputChild[7][3]->setCheckable(true);
@@ -1450,7 +1519,11 @@ void MainWindow::SetCardInfoToItem(QByteArray &CardInfo)
                 GI_outputChild[7][3]->setText(QString("V%1.%2").arg(ary.at(10)>>4).arg(ary.at(10)&0x0f));
                 GI_outputChild[7][5]->setText(QString("V%1.%2").arg(ary.at(11)>>4).arg(ary.at(11)&0x0f));
                 break;
-            case 0x33://卡槽9
+            case 33://卡槽9
+                for(int k=0; k<7; ++k)
+                {
+                    GI_outputChild[8][k]->setEnabled(true);
+                }
                 GI_outputChild[8][0]->setText("卡槽9");
                 GI_outputChild[8][1]->setCheckable(true);
                 GI_outputChild[8][3]->setCheckable(true);

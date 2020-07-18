@@ -85,7 +85,11 @@ bool Xmodem::SendFile(QString FilePath, QString CardType)
 
     //获取“C”
     rxChar = 0;
+    qDebug(".......m_rxchar.......:%#x",m_rxchar);
     GetChar(0x43,&rxChar,5000);
+    qDebug("11111111111111m_rxchar.......:%#x",m_rxchar);
+    qDebug("****rxChar*****:%#x",rxChar);
+    m_rxchar = 0;
     if(rxChar != XMDM_CRC)
     {
         qDebug()<<"Error!未接受到应答信号XMDM_CRC！";
@@ -167,6 +171,7 @@ NextStep:
         rxChar = 0;
         //获取XMDM_ACK、XMDM_NCK、XMDM_CAN
         GetChar(0x00,&rxChar,5000);
+        m_rxchar = 0;
         qDebug("respond:%#x",rxChar);
         qDebug("*****************************");
 
@@ -215,7 +220,6 @@ NextStep:
 /***c：0x43获取XMDM_CRC  c：0x00获取XMDM_ACK、XMDM_NCK、XMDM_CAN***/
 void Xmodem::GetChar(char c, char *rxchar,int msWaitTime)
 {
-    m_rxchar = 0;
     do
     {
         MainWindow::flags = 2;
@@ -253,6 +257,7 @@ void Xmodem::GetChar(char c, char *rxchar,int msWaitTime)
 void Xmodem::ReceiveRespond(char respond)
 {
     m_rxchar = respond;
+    qDebug("****m_rxchar*****:%#x",m_rxchar);
 }
 
 void Xmodem::StartSendFile(QString BinFilePath, QString CardType, int Row, int Col)
@@ -276,8 +281,8 @@ void Xmodem::run()
     else
     {
         qDebug()<<"升级失败";
-        msleep(100);
-        emit reconnection();//发起重新连接socket信号
+        //msleep(100);
+        //emit reconnection();//发起重新连接socket信号
         emit SendFileFinished("升级失败",m_CardType,m_Row,m_Col);
     }
 }
