@@ -562,6 +562,8 @@ void MainWindow::on_SelectFileBt_clicked()
 /***扫描板卡信息***/
 void MainWindow::ScanCard()
 {
+    if(flags == 2)//如果是升级控制板卡，则跳过扫描板卡
+        return;
     QByteArray m_outBlock;
     QDataStream out(&m_outBlock, QIODevice::WriteOnly);
     out.setVersion(QDataStream::Qt_5_6);
@@ -874,6 +876,7 @@ void MainWindow::StartUpgrade(QString condition, QString CardType, int Row, int 
                    Connection::tcpClient->write(m_outBlock);
                    emit FileSend(str,"输入卡",inrow,incol);
                    GI_inputChild[inrow][incol+1]->setText("正在升级...");
+                   GI_inputChild[inrow][incol+1]->setForeground(QBrush(QColor(0, 230, 0)));
                    return;
                }
                else
@@ -962,6 +965,7 @@ void MainWindow::StartUpgrade(QString condition, QString CardType, int Row, int 
                    Connection::tcpClient->write(m_outBlock);
                    emit FileSend(str,"输出卡",outrow,outcol);
                    GI_outputChild[outrow][outcol+1]->setText("正在升级...");
+                   GI_outputChild[outrow][outcol+1]->setForeground(QBrush(QColor(0, 230, 0)));
                    return;
                }
                else
@@ -1017,6 +1021,7 @@ void MainWindow::StartUpgrade(QString condition, QString CardType, int Row, int 
                    Connection::tcpClient->write(m_outBlock);
                    emit FileSend(str,"控制卡",conrow,concol);
                    GI_controlChild[conrow][concol+1]->setText("正在升级...");
+                   GI_controlChild[conrow][concol+1]->setForeground(QBrush(QColor(0, 230, 0)));
                    return;
                }
                else
@@ -1109,7 +1114,7 @@ void MainWindow::ReceiveData()
         }
     }
 #endif
-
+    qDebug()<<"6666666666666666666666";
     if(flags == 2)//接收回应
     {
         QByteArray tem = Connection::tcpClient->readAll();
@@ -1126,7 +1131,7 @@ void MainWindow::ReceiveCardInfo()
     timer->stop();//停止定时器
     m_CardInfo.resize(0);
     m_CardInfo = Connection::tcpClient->readAll();
-    qDebug()<<m_CardInfo.size();
+    qDebug()<<"接收板卡大小："<<m_CardInfo.size();
 //    for(int i = 0; i<m_CardInfo.size(); ++i)
 //    {
 //        qDebug("%#x",m_CardInfo.at(i));

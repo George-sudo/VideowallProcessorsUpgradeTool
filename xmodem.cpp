@@ -42,16 +42,21 @@ bool Xmodem::SendFile(QString FilePath, QString CardType)
         return false;
     }
     FlieSize = file.size();
+
+    MainWindow::flags = 2;
+
 #if 1
     //如果是控制卡升级，则等待板卡重启后，重连再发送
     if("控制卡" == CardType)
     {
         sleep(10);
+        qDebug()<<"等待控制重启";
         //发送信号给MainWindow对象重新连接控制卡
         emit reconnection();
+        sleep(1);
     }
 #endif
-    MainWindow::flags = 2;
+
 #if 0
     //获取0x35,往控制卡发送即将发送包的次数
     rxChar = 0;
@@ -134,19 +139,19 @@ bool Xmodem::SendFile(QString FilePath, QString CardType)
             crcH = crc>>8;
             crcL = crc&0x00ff;
             useq = ~seq;
-            out.writeRawData((char *)CompanyCheckCode,2);
-            out.writeRawData((char *)ProjectCode,2);
-            out.writeRawData((char *)&SendSizeH,1);
-            out.writeRawData((char *)&SendSizeL,1);
-            out.writeRawData((char *)&ExtensionHeadLen,1);
-            out.writeRawData((char *)&code,1);
+//            out.writeRawData((char *)CompanyCheckCode,2);
+//            out.writeRawData((char *)ProjectCode,2);
+//            out.writeRawData((char *)&SendSizeH,1);
+//            out.writeRawData((char *)&SendSizeL,1);
+//            out.writeRawData((char *)&ExtensionHeadLen,1);
+//            out.writeRawData((char *)&code,1);
             out.writeRawData(&xmdm_stx,1);
             out.writeRawData((char *)&seq,1);
             out.writeRawData(&useq,1);
             out.writeRawData(PacketBuf,PKTSIZE);
             out.writeRawData(&crcH,1);
             out.writeRawData(&crcL,1);
-            out.writeRawData((char *)&end,1);
+//            out.writeRawData((char *)&end,1);
         }
 
 #if 1
