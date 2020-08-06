@@ -1115,6 +1115,13 @@ void MainWindow::ReceiveData()
     }
 #endif
     qDebug()<<"6666666666666666666666";
+
+    if(flags == 3)//设置控制卡版本号
+    {
+        QByteArray ConVersion = Connection::tcpClient->readAll();
+        GI_controlChild[0][1]->setText(QString("V%1.%2").arg(ConVersion.at(0)>>4).arg(ConVersion.at(0)&0x0f));
+    }
+
     if(flags == 2)//接收回应
     {
         QByteArray tem = Connection::tcpClient->readAll();
@@ -1137,6 +1144,16 @@ void MainWindow::ReceiveCardInfo()
 //        qDebug("%#x",m_CardInfo.at(i));
 //    }
     SetCardInfoToItem(m_CardInfo);
+
+    //发送查询控制卡版本号命令
+    QByteArray outBlock;
+    QDataStream out(&outBlock, QIODevice::WriteOnly);
+    out.setVersion(QDataStream::Qt_5_6);
+    outBlock.resize(0);
+    uchar ScanCardOrder[9] = {0x42, 0x4c, 0x13, 0x89, 0x00, 0x01, 0x00, 0x02, 0xfe};
+    out.writeRawData((char*)ScanCardOrder,9);
+    flags = 3;//为了不让MainWindow::ReceiveData设置控制卡版本号
+    Connection::tcpClient->write(outBlock);
 }
 
 /***重新连接控制卡***/
